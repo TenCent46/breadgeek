@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme inline {
+  /* パンをイメージした温かみのあるカラーパレット */
+  --color-primary: #6B4226;
+  --color-primary-hover: #8B5E3C;
+  --color-accent: #D4943A;
+  --color-accent-light: #E8B86D;
+  --color-bg-primary: #FFFDF9;
+  --color-bg-secondary: #FBF6EF;
+  --color-bg-tertiary: #F7F1E8;
+  --color-text-primary: #3D2B1F;
+  --color-text-secondary: #7A6555;
+  --color-text-tertiary: #A89585;
+  --color-text-placeholder: #C4B5A5;
+  --color-border: #E6DCD0;
+  --color-border-light: #EDE5DA;
+  --color-success: #6B9B37;
+  --color-warning: #D4943A;
+  --color-error: #C0392B;
+  --color-info: #5B8DB8;
+  --font-sans: "Noto Sans JP", "Hiragino Sans", sans-serif;
+}
+
+body {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Slide-in animation for modals */
+@keyframes slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.animate-slide-in {
+  animation: slide-in 0.25s ease-out;
+}
+
+/* Fade up animation */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+  animation: fade-up 0.6s ease-out forwards;
+}
+.animate-fade-up-delay-1 {
+  animation: fade-up 0.6s ease-out 0.15s forwards;
+  opacity: 0;
+}
+.animate-fade-up-delay-2 {
+  animation: fade-up 0.6s ease-out 0.3s forwards;
+  opacity: 0;
+}
+.animate-fade-up-delay-3 {
+  animation: fade-up 0.6s ease-out 0.45s forwards;
+  opacity: 0;
+}

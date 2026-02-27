@@ -2,19 +2,33 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { Logo } from "@/components/ui/logo";
-import { Eye, EyeOff, Mail } from "lucide-react";
+import { Eye, EyeOff, Mail, User, GraduationCap, ChefHat } from "lucide-react";
+import Link from "next/link";
+
+type Role = "TEACHER" | "STUDENT";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState<Role>("STUDENT");
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{
+    name?: string;
+    email?: string;
+    password?: string;
+    general?: string;
+  }>({});
   const [isLoading, setIsLoading] = useState(false);
 
   const validate = () => {
-    const newErrors: { email?: string; password?: string } = {};
+    const newErrors: { name?: string; email?: string; password?: string } = {};
+    if (!name) {
+      newErrors.name = "お名前を入力してください";
+    }
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email) {
       newErrors.email = "メールアドレスを入力してください";
@@ -35,15 +49,45 @@ export default function RegisterPage() {
     if (!validate()) return;
 
     setIsLoading(true);
-    // Simulate registration
-    setTimeout(() => {
+    setErrors({});
+
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, name, role }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
       setIsLoading(false);
-      router.push("/setup-url");
-    }, 1000);
+      setErrors({ general: data.error || "登録に失敗しました" });
+      return;
+    }
+
+    // Auto sign-in after registration
+    const result = await signIn("credentials", {
+      email,
+      password,
+      redirect: false,
+    });
+
+    setIsLoading(false);
+
+    if (result?.error) {
+      setErrors({ general: "アカウントは作成されましたが、ログインに失敗しました" });
+      return;
+    }
+
+    if (role === "TEACHER") {
+      router.push("/dashboard");
+    } else {
+      router.push("/");
+    }
+    router.refresh();
   };
 
   return (
-    <div className="min-h-screen bg-bg-secondary flex flex-col items-center justify-center px-4">
+    <div className="min-h-screen bg-bg-secondary flex flex-col items-center justify-center px-4 py-8">
       <div className="mb-8">
         <Logo />
       </div>
@@ -56,7 +100,72 @@ export default function RegisterPage() {
           無料で始められます
         </p>
 
+        {errors.general && (
+          <div className="mb-5 p-3 bg-error/10 border border-error/20 rounded-lg text-sm text-error text-center">
+            {errors.general}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Role Selection */}
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-2">
+              アカウントの種類
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setRole("TEACHER")}
+                className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
+                  role === "TEACHER"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border text-text-secondary hover:border-primary/30"
+                }`}
+              >
+                <ChefHat size={24} />
+                <span className="text-sm font-medium">先生・教室運営者</span>
+                <span className="text-xs opacity-70">教室を作成・管理</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setRole("STUDENT")}
+                className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
+                  role === "STUDENT"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border text-text-secondary hover:border-primary/30"
+                }`}
+              >
+                <GraduationCap size={24} />
+                <span className="text-sm font-medium">生徒</span>
+                <span className="text-xs opacity-70">レッスンを予約</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Name */}
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1.5">
+              お名前
+            </label>
+            <div className="relative">
+              <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-tertiary" />
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={`w-full border rounded-lg pl-10 pr-4 py-3.5 text-base focus:outline-none focus:ring-2 transition-colors ${
+                  errors.name
+                    ? "border-error focus:border-error focus:ring-error/10"
+                    : "border-border focus:border-primary focus:ring-primary/10"
+                }`}
+                placeholder="田中 太郎"
+              />
+            </div>
+            {errors.name && (
+              <p className="mt-1.5 text-sm text-error">{errors.name}</p>
+            )}
+          </div>
+
           {/* Email */}
           <div>
             <label className="block text-sm font-medium text-text-primary mb-1.5">
@@ -147,9 +256,9 @@ export default function RegisterPage() {
         {/* Login Link */}
         <p className="mt-6 text-center text-sm text-text-secondary">
           すでにアカウントをお持ちの方{" "}
-          <a href="/login" className="text-primary font-medium hover:underline">
+          <Link href="/login" className="text-primary font-medium hover:underline">
             ログイン
-          </a>
+          </Link>
         </p>
       </div>
     </div>

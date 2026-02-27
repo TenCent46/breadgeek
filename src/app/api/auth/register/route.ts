@@ -1,0 +1,60 @@
+import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/prisma";
+
+export async function POST(req: Request) {
+  const body = await req.json();
+  const { email, password, name, role } = body as {
+    email: string;
+    password: string;
+    name: string;
+    role: "TEACHER" | "STUDENT";
+  };
+
+  if (!email || !password || !name || !role) {
+    return NextResponse.json(
+      { error: "必須項目が入力されていません" },
+      { status: 400 }
+    );
+  }
+
+  if (password.length < 8) {
+    return NextResponse.json(
+      { error: "パスワードは8文字以上で入力してください" },
+      { status: 400 }
+    );
+  }
+
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    return NextResponse.json(
+      { error: "このメールアドレスは既に登録されています" },
+      { status: 409 }
+    );
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+
+  const user = await prisma.user.create({
+    data: {
+      email,
+      name,
+      passwordHash,
+      role,
+    },
+  });
+
+  // If registering as teacher, create a default school
+  if (role === "TEACHER") {
+    const slug = email.split("@")[0].replace(/[^a-zA-Z0-9-]/g, "-");
+    await prisma.school.create({
+      data: {
+        slug,
+        name: `${name}のパン教室`,
+        ownerId: user.id,
+      },
+    });
+  }
+
+  return NextResponse.json({ success: true, userId: user.id });
+}

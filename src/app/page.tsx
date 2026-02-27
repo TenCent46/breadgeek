@@ -121,16 +121,22 @@ export default function Home() {
           </nav>
           <div className="flex items-center gap-3">
             <Link
+              href="/lessons"
+              className="text-sm text-accent font-medium hover:text-accent-light transition-colors"
+            >
+              レッスンを探す
+            </Link>
+            <Link
               href="/login"
               className="text-sm text-text-secondary hover:text-primary transition-colors"
             >
               ログイン
             </Link>
             <Link
-              href="/onboarding"
-              className="bg-primary text-white px-5 py-2 rounded-full text-sm font-medium hover:bg-primary-hover transition-all hover:shadow-lg"
+              href="/dashboard"
+              className="bg-accent text-white px-5 py-2 rounded-full text-sm font-medium hover:bg-accent-light transition-all hover:shadow-lg"
             >
-              無料で始める
+              デモを試す
             </Link>
           </div>
         </div>
@@ -166,17 +172,18 @@ export default function Home() {
             </p>
             <div className="flex flex-col sm:flex-row items-start gap-4 animate-fade-up-delay-3">
               <Link
-                href="/onboarding"
+                href="/dashboard"
                 className="inline-flex items-center gap-2 bg-accent text-white px-8 py-4 rounded-full text-lg font-medium hover:bg-accent-light transition-all hover:shadow-xl shadow-accent/30"
               >
-                無料ではじめる
+                デモを体験する
                 <ArrowRight size={18} />
               </Link>
               <Link
-                href="#features"
+                href="/lessons"
                 className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm text-white px-8 py-4 rounded-full text-lg font-medium hover:bg-white/25 transition-all"
               >
-                機能を見る
+                生徒としてレッスンを探す
+                <ArrowRight size={18} />
               </Link>
             </div>
           </div>

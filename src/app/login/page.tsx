@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { Logo } from "@/components/ui/logo";
 import { Eye, EyeOff, Mail } from "lucide-react";
 import Link from "next/link";
@@ -11,7 +12,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
 
   const validate = () => {
@@ -31,10 +32,42 @@ export default function LoginPage() {
     if (!validate()) return;
 
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    setErrors({});
+
+    const result = await signIn("credentials", {
+      email,
+      password,
+      redirect: false,
+    });
+
+    setIsLoading(false);
+
+    if (result?.error) {
+      setErrors({ general: "メールアドレスまたはパスワードが正しくありません" });
+    } else {
       router.push("/dashboard");
-    }, 800);
+      router.refresh();
+    }
+  };
+
+  const handleTestLogin = async () => {
+    setIsLoading(true);
+    setErrors({});
+
+    const result = await signIn("credentials", {
+      email: "tanaka@example.com",
+      password: "password123",
+      redirect: false,
+    });
+
+    setIsLoading(false);
+
+    if (result?.error) {
+      setErrors({ general: "テストユーザーのログインに失敗しました" });
+    } else {
+      router.push("/dashboard");
+      router.refresh();
+    }
   };
 
   return (
@@ -50,6 +83,12 @@ export default function LoginPage() {
         <p className="text-sm text-text-secondary text-center mb-8">
           アカウントにログインしてください
         </p>
+
+        {errors.general && (
+          <div className="mb-5 p-3 bg-error/10 border border-error/20 rounded-lg text-sm text-error text-center">
+            {errors.general}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Email */}
@@ -150,6 +189,21 @@ export default function LoginPage() {
           <Link href="/register" className="text-primary font-medium hover:underline">
             新規登録
           </Link>
+        </p>
+      </div>
+
+      {/* Test Login Button */}
+      <div className="w-full max-w-[480px] mt-4">
+        <button
+          onClick={handleTestLogin}
+          disabled={isLoading}
+          className="w-full flex items-center justify-center gap-2 bg-accent text-white py-3.5 rounded-xl text-base font-medium hover:bg-accent-light transition-all shadow-lg shadow-accent/20 disabled:opacity-50"
+        >
+          <span className="bg-white/20 text-xs px-2 py-0.5 rounded-full font-bold">DEV</span>
+          テストユーザーでログイン
+        </button>
+        <p className="text-xs text-text-tertiary text-center mt-2">
+          tanaka@example.com / password123 でログインします
         </p>
       </div>
     </div>

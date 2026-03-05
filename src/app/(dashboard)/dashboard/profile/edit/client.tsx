@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Camera, Plus, X } from "lucide-react";
+import { useState, useRef } from "react";
+import { Camera, Plus, X, Loader2 } from "lucide-react";
+import { updateSchoolProfile } from "@/lib/actions";
 
 const categoryOptions = [
   "パン教室",
@@ -11,28 +12,12 @@ const categoryOptions = [
 ];
 
 const prefectureOptions = [
-  "東京都",
-  "大阪府",
-  "神奈川県",
-  "愛知県",
-  "福岡県",
-  "北海道",
-  "京都府",
-  "兵庫県",
-  "埼玉県",
-  "千葉県",
-  "広島県",
-  "宮城県",
+  "東京都", "大阪府", "神奈川県", "愛知県", "福岡県", "北海道",
+  "京都府", "兵庫県", "埼玉県", "千葉県", "広島県", "宮城県",
 ];
 
 const snsPlaftormOptions = [
-  "Instagram",
-  "X (Twitter)",
-  "YouTube",
-  "LINE",
-  "TikTok",
-  "Facebook",
-  "ウェブサイト",
+  "Instagram", "X (Twitter)", "YouTube", "LINE", "TikTok", "Facebook", "ウェブサイト",
 ];
 
 interface SnsLink {
@@ -48,6 +33,16 @@ interface ProfileEditClientProps {
     description: string | null;
     location: string | null;
     imageUrl: string | null;
+    title: string;
+    features: string;
+    category: string;
+    tags: string[];
+    phone: string;
+    instagram: string;
+    x: string;
+    youtube: string;
+    line: string;
+    tiktok: string;
   };
   userName: string;
   userEmail: string;
@@ -58,30 +53,38 @@ export function ProfileEditClient({
   userName: initialUserName,
   userEmail: initialUserEmail,
 }: ProfileEditClientProps) {
-  const [displayName, setDisplayName] = useState(initialUserName || "あなたの名前");
-  const [title, setTitle] = useState("パン教室主宰");
-  const [bio, setBio] = useState(
-    school.description ||
-    "天然酵母と国産小麦にこだわったパン教室を運営しています。初心者の方も大歓迎です。"
-  );
-  const [schoolFeatures, setSchoolFeatures] = useState("");
-  const [tags, setTags] = useState<string[]>([
-    "天然酵母",
-    "国産小麦",
-    "パン教室",
-    "初心者歓迎",
-  ]);
+  const [displayName, setDisplayName] = useState(school.name || initialUserName || "");
+  const [title, setTitle] = useState(school.title || "");
+  const [bio, setBio] = useState(school.description || "");
+  const [schoolFeatures, setSchoolFeatures] = useState(school.features || "");
+  const [tags, setTags] = useState<string[]>(school.tags.length > 0 ? school.tags : []);
   const [tagInput, setTagInput] = useState("");
-  const [category, setCategory] = useState("パン教室");
-  const [prefecture, setPrefecture] = useState("東京都");
-  const [city, setCity] = useState(school.location || "渋谷区");
-  const [email, setEmail] = useState(initialUserEmail || "example@breadgeek.com");
-  const [phone, setPhone] = useState("090-1234-5678");
-  const [snsLinks, setSnsLinks] = useState<SnsLink[]>([
-    { id: "1", platform: "Instagram", url: "https://instagram.com/example" },
-    { id: "2", platform: "YouTube", url: "https://youtube.com/@example" },
-  ]);
+  const [category, setCategory] = useState(school.category || "パン教室");
+  const [imageUrl, setImageUrl] = useState(school.imageUrl);
+  const [previewImage, setPreviewImage] = useState(school.imageUrl);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Parse location into prefecture + city
+  const locationParts = (school.location || "").split(" ");
+  const [prefecture, setPrefecture] = useState(locationParts[0] || "");
+  const [city, setCity] = useState(locationParts.slice(1).join(" ") || "");
+
+  const [email] = useState(initialUserEmail || "");
+  const [phone, setPhone] = useState(school.phone || "");
+
+  // Build SNS links from school data
+  const initialSns: SnsLink[] = [];
+  if (school.instagram) initialSns.push({ id: "ig", platform: "Instagram", url: school.instagram });
+  if (school.x) initialSns.push({ id: "x", platform: "X (Twitter)", url: school.x });
+  if (school.youtube) initialSns.push({ id: "yt", platform: "YouTube", url: school.youtube });
+  if (school.line) initialSns.push({ id: "ln", platform: "LINE", url: school.line });
+  if (school.tiktok) initialSns.push({ id: "tt", platform: "TikTok", url: school.tiktok });
+  const [snsLinks, setSnsLinks] = useState<SnsLink[]>(
+    initialSns.length > 0 ? initialSns : []
+  );
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   function handleAddTag(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter") {
@@ -101,11 +104,7 @@ export function ProfileEditClient({
   function addSnsLink() {
     setSnsLinks((prev) => [
       ...prev,
-      {
-        id: Math.random().toString(36).slice(2, 10),
-        platform: "Instagram",
-        url: "",
-      },
+      { id: Math.random().toString(36).slice(2, 10), platform: "Instagram", url: "" },
     ]);
   }
 
@@ -119,7 +118,68 @@ export function ProfileEditClient({
     setSnsLinks((prev) => prev.filter((link) => link.id !== id));
   }
 
-  function handleSave() {
+  async function handleImageUpload(file: File) {
+    if (file.size > 5 * 1024 * 1024) {
+      alert("ファイルサイズは5MB以下にしてください");
+      return;
+    }
+    const validTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      alert("jpg, png, webp形式のファイルを選択してください");
+      return;
+    }
+
+    // Preview immediately
+    const reader = new FileReader();
+    reader.onload = (e) => setPreviewImage(e.target?.result as string);
+    reader.readAsDataURL(file);
+
+    // Upload
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder", "profiles");
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (res.ok) {
+        const { url } = await res.json();
+        setImageUrl(url);
+      }
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  // Extract SNS values by platform
+  function getSnsValue(platform: string): string {
+    const link = snsLinks.find(
+      (l) => l.platform === platform || l.platform === `${platform} (Twitter)`
+    );
+    return link?.url || "";
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    const location = [prefecture, city].filter(Boolean).join(" ");
+
+    await updateSchoolProfile({
+      name: displayName,
+      description: bio,
+      location,
+      imageUrl: imageUrl,
+      title,
+      features: schoolFeatures,
+      category,
+      tags,
+      phone,
+      instagram: getSnsValue("Instagram"),
+      x: getSnsValue("X"),
+      youtube: getSnsValue("YouTube"),
+      line: getSnsValue("LINE"),
+      tiktok: getSnsValue("TikTok"),
+    });
+
+    setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -143,15 +203,40 @@ export function ProfileEditClient({
           <div className="flex flex-col items-center">
             <div className="relative mb-3">
               <div className="w-[100px] h-[100px] rounded-full bg-bg-secondary flex items-center justify-center overflow-hidden">
-                <span className="text-4xl">👤</span>
+                {previewImage ? (
+                  <img src={previewImage} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-4xl">👤</span>
+                )}
+                {uploading && (
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-full">
+                    <Loader2 size={20} className="text-white animate-spin" />
+                  </div>
+                )}
               </div>
-              <div className="absolute bottom-0 right-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center border-2 border-white cursor-pointer">
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute bottom-0 right-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center border-2 border-white cursor-pointer"
+              >
                 <Camera size={14} className="text-white" />
               </div>
             </div>
-            <button className="text-sm text-accent hover:underline">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="text-sm text-accent hover:underline"
+            >
               画像を変更
             </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".jpg,.jpeg,.png,.webp"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleImageUpload(file);
+              }}
+            />
           </div>
 
           {/* Display Name */}
@@ -216,17 +301,14 @@ export function ProfileEditClient({
           <div>
             <label className="block text-sm font-medium text-text-primary mb-2">
               教室の特徴
-              <span className="text-xs text-text-tertiary ml-2">
-                (最大500文字)
-              </span>
+              <span className="text-xs text-text-tertiary ml-2">(最大500文字)</span>
             </label>
             <textarea
               value={schoolFeatures}
               onChange={(e) => {
-                if (e.target.value.length <= 500)
-                  setSchoolFeatures(e.target.value);
+                if (e.target.value.length <= 500) setSchoolFeatures(e.target.value);
               }}
-              placeholder="教室の特徴やこだわりを入力してください（例: 天然酵母100%使用、少人数制、国産小麦にこだわり...）"
+              placeholder="教室の特徴やこだわりを入力してください"
               rows={4}
               className="w-full border border-border rounded-lg px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 resize-none"
             />
@@ -249,9 +331,7 @@ export function ProfileEditClient({
           <div>
             <label className="block text-sm font-medium text-text-primary mb-2">
               専門分野タグ
-              <span className="text-xs text-text-tertiary ml-2">
-                (最大10個)
-              </span>
+              <span className="text-xs text-text-tertiary ml-2">(最大10個)</span>
             </label>
             <div className="border border-border rounded-lg px-3 py-2 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10">
               <div className="flex flex-wrap gap-2 mb-2">
@@ -276,9 +356,7 @@ export function ProfileEditClient({
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={handleAddTag}
                 placeholder={
-                  tags.length >= 10
-                    ? "タグの上限に達しました"
-                    : "タグを入力してEnterで追加"
+                  tags.length >= 10 ? "タグの上限に達しました" : "タグを入力してEnterで追加"
                 }
                 disabled={tags.length >= 10}
                 className="w-full text-sm outline-none bg-transparent py-1 disabled:cursor-not-allowed"
@@ -297,9 +375,7 @@ export function ProfileEditClient({
               className="w-full border border-border rounded-lg px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10"
             >
               {categoryOptions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
+                <option key={opt} value={opt}>{opt}</option>
               ))}
             </select>
           </div>
@@ -317,9 +393,7 @@ export function ProfileEditClient({
               >
                 <option value="">都道府県を選択</option>
                 {prefectureOptions.map((pref) => (
-                  <option key={pref} value={pref}>
-                    {pref}
-                  </option>
+                  <option key={pref} value={pref}>{pref}</option>
                 ))}
               </select>
               <input
@@ -340,9 +414,8 @@ export function ProfileEditClient({
             <input
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="email@example.com"
-              className="w-full border border-border rounded-lg px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10"
+              readOnly
+              className="w-full border border-border rounded-lg px-4 py-3 text-sm bg-bg-secondary text-text-tertiary cursor-not-allowed"
             />
           </div>
 
@@ -371,23 +444,17 @@ export function ProfileEditClient({
                 <div key={link.id} className="flex items-center gap-3">
                   <select
                     value={link.platform}
-                    onChange={(e) =>
-                      updateSnsLink(link.id, "platform", e.target.value)
-                    }
+                    onChange={(e) => updateSnsLink(link.id, "platform", e.target.value)}
                     className="w-40 shrink-0 border border-border rounded-lg px-3 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10"
                   >
                     {snsPlaftormOptions.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
+                      <option key={opt} value={opt}>{opt}</option>
                     ))}
                   </select>
                   <input
                     type="url"
                     value={link.url}
-                    onChange={(e) =>
-                      updateSnsLink(link.id, "url", e.target.value)
-                    }
+                    onChange={(e) => updateSnsLink(link.id, "url", e.target.value)}
                     placeholder="https://"
                     className="flex-1 border border-border rounded-lg px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10"
                   />
@@ -413,9 +480,19 @@ export function ProfileEditClient({
           <div className="pt-4 border-t border-border-light">
             <button
               onClick={handleSave}
-              className="bg-primary text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-hover transition-colors"
+              disabled={saving || uploading}
+              className="bg-primary text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-hover transition-colors disabled:opacity-40 flex items-center gap-2"
             >
-              {saved ? "保存しました" : "変更を保存する"}
+              {saving ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  保存中...
+                </>
+              ) : saved ? (
+                "保存しました"
+              ) : (
+                "変更を保存する"
+              )}
             </button>
           </div>
         </div>

@@ -12,6 +12,8 @@ import {
   CalendarDays,
   Wheat,
   ArrowRight,
+  Instagram,
+  ExternalLink,
 } from "lucide-react";
 
 const CATEGORIES = [
@@ -49,12 +51,26 @@ function StarRating({ rating, size = 16 }: { rating: number; size?: number }) {
   );
 }
 
+interface SnsLinks {
+  instagram: string;
+  x: string;
+  youtube: string;
+  line: string;
+  tiktok: string;
+}
+
 interface ClassroomClientProps {
   slug: string;
   schoolName: string;
   schoolDescription: string;
   schoolLocation: string;
+  schoolTitle: string;
+  schoolImageUrl: string | null;
+  schoolThemeColor: string;
+  schoolThemeType: string;
+  schoolSns: SnsLinks;
   ownerName: string;
+  ownerImage: string | null;
   services: Service[];
   reviews: Review[];
 }
@@ -64,7 +80,13 @@ export function ClassroomClient({
   schoolName,
   schoolDescription,
   schoolLocation,
+  schoolTitle,
+  schoolImageUrl,
+  schoolThemeColor,
+  schoolThemeType,
+  schoolSns,
   ownerName,
+  ownerImage,
   services,
   reviews,
 }: ClassroomClientProps) {
@@ -82,30 +104,64 @@ export function ClassroomClient({
 
   const displayedReviews = reviews.slice(0, 3);
 
+  const hasSns = Object.values(schoolSns).some((v) => v.trim() !== "");
+
+  // Hero background: use school image or fallback
+  const heroBg = schoolImageUrl
+    ? schoolImageUrl
+    : "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=1920&q=80&auto=format&fit=crop";
+
+  // Theme color overlay
+  const heroOverlay =
+    schoolThemeType === "solid" && schoolThemeColor !== "#FFFFFF"
+      ? schoolThemeColor
+      : undefined;
+
   return (
     <div className="min-h-screen bg-bg-primary">
-      {/* ─── Hero Section ─── */}
+      {/* Hero Section */}
       <section className="relative h-[420px] md:h-[480px] overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage:
-              "url(https://images.unsplash.com/photo-1509440159596-0249088772ff?w=1920&q=80&auto=format&fit=crop)",
-          }}
+          style={{ backgroundImage: `url(${heroBg})` }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30" />
+        <div
+          className="absolute inset-0"
+          style={
+            heroOverlay
+              ? { backgroundColor: heroOverlay, opacity: 0.7 }
+              : { background: "linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0.5), rgba(0,0,0,0.3))" }
+          }
+        />
 
         <div className="relative z-10 h-full max-w-5xl mx-auto px-4 sm:px-6 flex flex-col justify-end pb-10">
-          {schoolLocation && (
-            <span className="inline-flex items-center gap-1.5 text-sm text-white/80 mb-3">
-              <MapPin size={14} />
-              {schoolLocation}
-            </span>
-          )}
-
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2 tracking-tight">
-            {schoolName}
-          </h1>
+          <div className="flex items-end gap-4 mb-4">
+            {ownerImage ? (
+              <img
+                src={ownerImage}
+                alt={ownerName}
+                className="w-16 h-16 rounded-full object-cover border-2 border-white/50 shrink-0"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-white text-xl font-bold border-2 border-white/50 shrink-0">
+                {ownerName.charAt(0) || "?"}
+              </div>
+            )}
+            <div>
+              {schoolLocation && (
+                <span className="inline-flex items-center gap-1.5 text-sm text-white/80 mb-1">
+                  <MapPin size={14} />
+                  {schoolLocation}
+                </span>
+              )}
+              <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight">
+                {schoolName}
+              </h1>
+              {schoolTitle && (
+                <p className="text-sm text-white/70 mt-1">{schoolTitle}</p>
+              )}
+            </div>
+          </div>
 
           {schoolDescription && (
             <p className="text-base md:text-lg text-white/80 mb-4 max-w-xl">
@@ -113,19 +169,67 @@ export function ClassroomClient({
             </p>
           )}
 
-          <div className="flex items-center gap-2">
-            <StarRating rating={Math.round(avgRating)} />
-            <span className="text-white font-semibold text-sm">
-              {avgRating.toFixed(1)}
-            </span>
-            <span className="text-white/60 text-sm">
-              ({reviews.length}件のレビュー)
-            </span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <StarRating rating={Math.round(avgRating)} />
+              <span className="text-white font-semibold text-sm">
+                {avgRating.toFixed(1)}
+              </span>
+              <span className="text-white/60 text-sm">
+                ({reviews.length}件のレビュー)
+              </span>
+            </div>
+
+            {/* SNS Links */}
+            {hasSns && (
+              <div className="flex items-center gap-2 ml-2">
+                {schoolSns.instagram && (
+                  <a
+                    href={schoolSns.instagram.startsWith("http") ? schoolSns.instagram : `https://instagram.com/${schoolSns.instagram}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+                  >
+                    <Instagram size={16} className="text-white" />
+                  </a>
+                )}
+                {schoolSns.x && (
+                  <a
+                    href={schoolSns.x.startsWith("http") ? schoolSns.x : `https://x.com/${schoolSns.x}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+                  >
+                    <span className="text-white text-sm font-bold">𝕏</span>
+                  </a>
+                )}
+                {schoolSns.youtube && (
+                  <a
+                    href={schoolSns.youtube.startsWith("http") ? schoolSns.youtube : `https://youtube.com/${schoolSns.youtube}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+                  >
+                    <ExternalLink size={14} className="text-white" />
+                  </a>
+                )}
+                {schoolSns.tiktok && (
+                  <a
+                    href={schoolSns.tiktok.startsWith("http") ? schoolSns.tiktok : `https://tiktok.com/@${schoolSns.tiktok}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+                  >
+                    <span className="text-white text-xs font-bold">TT</span>
+                  </a>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </section>
 
-      {/* ─── Category Filter ─── */}
+      {/* Category Filter */}
       <section className="sticky top-0 z-20 bg-white border-b border-border-light">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="flex items-center gap-2 py-3 overflow-x-auto scrollbar-hide">
@@ -146,7 +250,7 @@ export function ClassroomClient({
         </div>
       </section>
 
-      {/* ─── Lesson Cards ─── */}
+      {/* Lesson Cards */}
       <section className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-text-primary">
@@ -235,7 +339,7 @@ export function ClassroomClient({
         )}
       </section>
 
-      {/* ─── Reviews Section ─── */}
+      {/* Reviews Section */}
       <section className="bg-white border-t border-border-light">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
           <div className="flex items-center justify-between mb-6">
@@ -279,7 +383,7 @@ export function ClassroomClient({
         </div>
       </section>
 
-      {/* ─── Classroom Info ─── */}
+      {/* Classroom Info */}
       <section className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
         <h2 className="text-xl font-bold text-text-primary mb-5">
           教室情報

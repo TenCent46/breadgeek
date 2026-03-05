@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { Stepper } from "@/components/onboarding/stepper";
 import { MobilePreview } from "@/components/onboarding/mobile-preview";
 import { useOnboarding } from "@/lib/onboarding-context";
-import { Palette } from "lucide-react";
+import { saveOnboarding } from "@/lib/actions";
+import { Palette, Loader2 } from "lucide-react";
 
 const SOLID_COLORS = [
   "#FFFFFF", "#F5F5F5", "#E8E8E8", "#F0EDE8", "#F5F0E0",
@@ -39,6 +40,7 @@ export default function SetupThemePage() {
   const [selectedColor, setSelectedColor] = useState(data.themeColor || "#FFFFFF");
   const [customColor, setCustomColor] = useState("#FF6B6B");
   const [showPicker, setShowPicker] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setCurrentStep(3);
@@ -54,14 +56,35 @@ export default function SetupThemePage() {
     setShowPicker(false);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    setSaving(true);
     updateData({ themeType: activeTab, themeColor: selectedColor });
-    // Navigate to dashboard or completion
-    router.push("/");
+    const finalData = { ...data, themeType: activeTab, themeColor: selectedColor };
+    await saveOnboarding({
+      url: finalData.url,
+      activityName: finalData.activityName,
+      title: finalData.title,
+      imageUrl: finalData.profileImage,
+      themeType: activeTab,
+      themeColor: selectedColor,
+      socialLinks: finalData.socialLinks,
+    });
+    router.push("/dashboard");
   };
 
-  const handleSkip = () => {
-    router.push("/");
+  const handleSkip = async () => {
+    setSaving(true);
+    const finalData = data;
+    await saveOnboarding({
+      url: finalData.url,
+      activityName: finalData.activityName,
+      title: finalData.title,
+      imageUrl: finalData.profileImage,
+      themeType: "solid",
+      themeColor: "#FFFFFF",
+      socialLinks: finalData.socialLinks,
+    });
+    router.push("/dashboard");
   };
 
   return (
@@ -181,15 +204,24 @@ export default function SetupThemePage() {
           <div className="flex items-center justify-center gap-6 mt-10">
             <button
               onClick={handleSkip}
-              className="text-sm text-text-secondary hover:text-text-primary transition-colors"
+              disabled={saving}
+              className="text-sm text-text-secondary hover:text-text-primary transition-colors disabled:opacity-40"
             >
               スキップ
             </button>
             <button
               onClick={handleSubmit}
-              className="bg-primary text-white px-8 py-3.5 rounded-lg text-base font-medium hover:bg-primary-hover transition-colors"
+              disabled={saving}
+              className="bg-primary text-white px-8 py-3.5 rounded-lg text-base font-medium hover:bg-primary-hover transition-colors disabled:opacity-40 flex items-center gap-2"
             >
-              このテーマで決定
+              {saving ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  保存中...
+                </>
+              ) : (
+                "このテーマで決定"
+              )}
             </button>
           </div>
         </div>

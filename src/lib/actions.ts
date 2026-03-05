@@ -419,3 +419,100 @@ export async function updateKitchenSettings(data: KitchenSettings) {
 
   revalidatePath("/dashboard/settings");
 }
+
+// ─── Slug Check ───
+
+export async function checkSlugAvailability(slug: string): Promise<boolean> {
+  const existing = await prisma.school.findUnique({
+    where: { slug },
+    select: { id: true },
+  });
+  return !existing;
+}
+
+// ─── Onboarding ───
+
+interface OnboardingData {
+  url: string;
+  activityName: string;
+  title: string;
+  imageUrl: string | null;
+  themeType: string;
+  themeColor: string;
+  socialLinks: { platform: string; username: string }[];
+}
+
+export async function saveOnboarding(data: OnboardingData) {
+  const { school } = await requireTeacher();
+
+  const snsMap: Record<string, string> = {};
+  for (const link of data.socialLinks) {
+    snsMap[link.platform] = link.username;
+  }
+
+  await prisma.school.update({
+    where: { id: school.id },
+    data: {
+      slug: data.url,
+      name: data.activityName || school.name,
+      title: data.title,
+      imageUrl: data.imageUrl,
+      themeType: data.themeType,
+      themeColor: data.themeColor,
+      instagram: snsMap["instagram"] || "",
+      x: snsMap["x"] || "",
+      youtube: snsMap["youtube"] || "",
+      line: snsMap["line"] || "",
+      tiktok: snsMap["tiktok"] || "",
+    },
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/p/${data.url}`);
+}
+
+// ─── School Profile ───
+
+interface SchoolProfileData {
+  name: string;
+  description: string;
+  location: string;
+  imageUrl: string | null;
+  title: string;
+  features: string;
+  category: string;
+  tags: string[];
+  phone: string;
+  instagram: string;
+  x: string;
+  youtube: string;
+  line: string;
+  tiktok: string;
+}
+
+export async function updateSchoolProfile(data: Partial<SchoolProfileData>) {
+  const { school } = await requireTeacher();
+
+  await prisma.school.update({
+    where: { id: school.id },
+    data: {
+      ...(data.name !== undefined && { name: data.name }),
+      ...(data.description !== undefined && { description: data.description }),
+      ...(data.location !== undefined && { location: data.location }),
+      ...(data.imageUrl !== undefined && { imageUrl: data.imageUrl }),
+      ...(data.title !== undefined && { title: data.title }),
+      ...(data.features !== undefined && { features: data.features }),
+      ...(data.category !== undefined && { category: data.category }),
+      ...(data.tags !== undefined && { tags: data.tags }),
+      ...(data.phone !== undefined && { phone: data.phone }),
+      ...(data.instagram !== undefined && { instagram: data.instagram }),
+      ...(data.x !== undefined && { x: data.x }),
+      ...(data.youtube !== undefined && { youtube: data.youtube }),
+      ...(data.line !== undefined && { line: data.line }),
+      ...(data.tiktok !== undefined && { tiktok: data.tiktok }),
+    },
+  });
+
+  revalidatePath("/dashboard/profile/edit");
+  revalidatePath(`/p/${school.slug}`);
+}

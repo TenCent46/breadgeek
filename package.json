@@ -13,6 +13,7 @@
     "@auth/prisma-adapter": "^2.11.1",
     "@prisma/adapter-pg": "^7.4.1",
     "@prisma/client": "^7.4.1",
+    "@vercel/blob": "^2.3.1",
     "bcryptjs": "^3.0.3",
     "lucide-react": "^0.575.0",
     "meilisearch": "^0.55.0",

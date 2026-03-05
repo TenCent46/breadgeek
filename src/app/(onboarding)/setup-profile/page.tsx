@@ -5,14 +5,16 @@ import { useRouter } from "next/navigation";
 import { Stepper } from "@/components/onboarding/stepper";
 import { MobilePreview } from "@/components/onboarding/mobile-preview";
 import { useOnboarding } from "@/lib/onboarding-context";
-import { User, ChevronRight } from "lucide-react";
+import { User, ChevronRight, Loader2 } from "lucide-react";
 
 export default function SetupProfilePage() {
   const router = useRouter();
   const { data, updateData, setCurrentStep } = useOnboarding();
   const [activityName, setActivityName] = useState(data.activityName);
   const [title, setTitle] = useState(data.title);
-  const [profileImage, setProfileImage] = useState<string | null>(data.profileImage);
+  const [previewImage, setPreviewImage] = useState<string | null>(data.profileImage);
+  const [uploading, setUploading] = useState(false);
+  const uploadedUrlRef = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
@@ -20,14 +22,13 @@ export default function SetupProfilePage() {
     setCurrentStep(1);
   }, [setCurrentStep]);
 
-  // Sync to context for real-time preview
   useEffect(() => {
-    updateData({ activityName, title, profileImage });
-  }, [activityName, title, profileImage]);
+    updateData({ activityName, title, profileImage: previewImage });
+  }, [activityName, title, previewImage]);
 
-  const handleImageUpload = (file: File) => {
-    if (file.size > 100 * 1024 * 1024) {
-      alert("ファイルサイズは100MB以下にしてください");
+  const handleImageUpload = async (file: File) => {
+    if (file.size > 5 * 1024 * 1024) {
+      alert("ファイルサイズは5MB以下にしてください");
       return;
     }
     const validTypes = ["image/jpeg", "image/png", "image/webp"];
@@ -35,11 +36,30 @@ export default function SetupProfilePage() {
       alert("jpg, png, webp形式のファイルを選択してください");
       return;
     }
+
+    // Show preview immediately
     const reader = new FileReader();
     reader.onload = (e) => {
-      setProfileImage(e.target?.result as string);
+      setPreviewImage(e.target?.result as string);
     };
     reader.readAsDataURL(file);
+
+    // Upload to Vercel Blob
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder", "profiles");
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (res.ok) {
+        const { url } = await res.json();
+        uploadedUrlRef.current = url;
+      }
+    } catch {
+      // Fallback: keep the data URL
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -55,7 +75,9 @@ export default function SetupProfilePage() {
   };
 
   const handleSubmit = () => {
-    updateData({ activityName, title, profileImage });
+    // Use blob URL if available, otherwise keep the preview data URL
+    const imageUrl = uploadedUrlRef.current || previewImage;
+    updateData({ activityName, title, profileImage: imageUrl });
     router.push("/setup-sns");
   };
 
@@ -84,23 +106,28 @@ export default function SetupProfilePage() {
                 <p>またはファイルを選択できます。</p>
                 <p className="mt-2">形式: jpg, png, webp</p>
                 <p>推奨サイズ: 1280 x 1280 px</p>
-                <p>ファイル容量: 最大100MB</p>
+                <p>ファイル容量: 最大5MB</p>
               </div>
               <div
                 ref={dropZoneRef}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onClick={() => fileInputRef.current?.click()}
-                className="w-[120px] h-[120px] rounded-full bg-[#E8E8E8] flex items-center justify-center cursor-pointer hover:bg-[#D8D8D8] transition-colors overflow-hidden shrink-0"
+                className="w-[120px] h-[120px] rounded-full bg-[#E8E8E8] flex items-center justify-center cursor-pointer hover:bg-[#D8D8D8] transition-colors overflow-hidden shrink-0 relative"
               >
-                {profileImage ? (
+                {previewImage ? (
                   <img
-                    src={profileImage}
+                    src={previewImage}
                     alt="Profile"
                     className="w-full h-full object-cover"
                   />
                 ) : (
                   <User size={48} className="text-[#BDBDBD]" />
+                )}
+                {uploading && (
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-full">
+                    <Loader2 size={24} className="text-white animate-spin" />
+                  </div>
                 )}
               </div>
               <input
@@ -158,7 +185,8 @@ export default function SetupProfilePage() {
           <div className="flex justify-center">
             <button
               onClick={handleSubmit}
-              className="bg-primary text-white px-8 py-3.5 rounded-lg text-base font-medium hover:bg-primary-hover transition-colors flex items-center gap-1"
+              disabled={uploading}
+              className="bg-primary text-white px-8 py-3.5 rounded-lg text-base font-medium hover:bg-primary-hover transition-colors flex items-center gap-1 disabled:opacity-40"
             >
               この内容で作成
               <ChevronRight size={18} />

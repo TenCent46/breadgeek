@@ -145,6 +145,18 @@ model School {
   location    String?
   imageUrl    String?
   ownerId     String  @unique
+  title       String  @default("")
+  features    String  @default("")
+  category    String  @default("パン教室")
+  tags        String[]
+  phone       String  @default("")
+  themeType   String  @default("solid")
+  themeColor  String  @default("#FFFFFF")
+  instagram   String  @default("")
+  x           String  @default("")
+  youtube     String  @default("")
+  line        String  @default("")
+  tiktok      String  @default("")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

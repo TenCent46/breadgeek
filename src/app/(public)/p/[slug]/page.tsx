@@ -30,7 +30,19 @@ export default async function ClassroomPage({
       schoolName={school.name}
       schoolDescription={school.description || ""}
       schoolLocation={school.location || ""}
+      schoolTitle={school.title}
+      schoolImageUrl={school.imageUrl}
+      schoolThemeColor={school.themeColor}
+      schoolThemeType={school.themeType}
+      schoolSns={{
+        instagram: school.instagram,
+        x: school.x,
+        youtube: school.youtube,
+        line: school.line,
+        tiktok: school.tiktok,
+      }}
       ownerName={school.owner.name || ""}
+      ownerImage={school.owner.image}
       services={publishedServices}
       reviews={reviews}
     />

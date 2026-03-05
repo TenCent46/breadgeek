@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Stepper } from "@/components/onboarding/stepper";
 import { MobilePreview } from "@/components/onboarding/mobile-preview";
 import { useOnboarding } from "@/lib/onboarding-context";
+import { checkSlugAvailability } from "@/lib/actions";
 import { Check, X, ChevronRight } from "lucide-react";
 
 export default function SetupUrlPage() {
@@ -31,9 +32,9 @@ export default function SetupUrlPage() {
     }
 
     setIsChecking(true);
-    const timer = setTimeout(() => {
-      // Simulate availability check
-      setIsValid(true);
+    const timer = setTimeout(async () => {
+      const available = await checkSlugAvailability(url);
+      setIsValid(available);
       setIsChecking(false);
     }, 500);
 
@@ -97,7 +98,9 @@ export default function SetupUrlPage() {
             </div>
             {url && !isChecking && isValid === false && (
               <p className="mt-2 text-sm text-error">
-                半角英数字、ハイフン、アンダースコアのみ使用できます（3〜30文字）
+                {/^[a-zA-Z0-9_-]{3,30}$/.test(url)
+                  ? "このURLは既に使用されています"
+                  : "半角英数字、ハイフン、アンダースコアのみ使用できます（3〜30文字）"}
               </p>
             )}
             {url && !isChecking && isValid === true && (

@@ -5,6 +5,8 @@ import {
   configureMeilisearchIndexes,
 } from "@/lib/meilisearch-sync";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: Request) {
   const authHeader = req.headers.get("authorization");
   const expectedKey = process.env.MEILISEARCH_API_KEY;

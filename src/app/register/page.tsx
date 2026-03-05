@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
 import { Logo } from "@/components/ui/logo";
 import { Eye, EyeOff, Mail, User, GraduationCap, ChefHat } from "lucide-react";
 import Link from "next/link";
@@ -64,26 +63,8 @@ export default function RegisterPage() {
       return;
     }
 
-    // Auto sign-in after registration
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
-
-    setIsLoading(false);
-
-    if (result?.error) {
-      setErrors({ general: "アカウントは作成されましたが、ログインに失敗しました" });
-      return;
-    }
-
-    if (role === "TEACHER") {
-      router.push("/dashboard");
-    } else {
-      router.push("/");
-    }
-    router.refresh();
+    // Redirect to check-email page (email verification required before login)
+    router.push(`/auth/check-email?email=${encodeURIComponent(email)}&type=register`);
   };
 
   return (

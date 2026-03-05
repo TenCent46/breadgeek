@@ -1,19 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Logo } from "@/components/ui/logo";
-import { Eye, EyeOff, Mail } from "lucide-react";
+import { Eye, EyeOff, Mail, CheckCircle } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const resetSuccess = searchParams.get("reset") === "success";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [showUnverified, setShowUnverified] = useState(false);
 
   const validate = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -33,6 +37,7 @@ export default function LoginPage() {
 
     setIsLoading(true);
     setErrors({});
+    setShowUnverified(false);
 
     const result = await signIn("credentials", {
       email,
@@ -43,10 +48,30 @@ export default function LoginPage() {
     setIsLoading(false);
 
     if (result?.error) {
-      setErrors({ general: "メールアドレスまたはパスワードが正しくありません" });
+      if (result.error.includes("EMAIL_NOT_VERIFIED")) {
+        setShowUnverified(true);
+        setErrors({ general: "メールアドレスが確認されていません。登録時に送信した確認メールのリンクをクリックしてください。" });
+      } else {
+        setErrors({ general: "メールアドレスまたはパスワードが正しくありません" });
+      }
     } else {
       router.push("/dashboard");
       router.refresh();
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setIsLoading(true);
+    try {
+      await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      router.push(`/auth/check-email?email=${encodeURIComponent(email)}&type=register`);
+    } catch {
+      setErrors({ general: "エラーが発生しました" });
+      setIsLoading(false);
     }
   };
 
@@ -84,9 +109,24 @@ export default function LoginPage() {
           アカウントにログインしてください
         </p>
 
+        {resetSuccess && (
+          <div className="mb-5 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 text-center flex items-center justify-center gap-2">
+            <CheckCircle size={16} />
+            パスワードが正常にリセットされました。新しいパスワードでログインしてください。
+          </div>
+        )}
+
         {errors.general && (
           <div className="mb-5 p-3 bg-error/10 border border-error/20 rounded-lg text-sm text-error text-center">
             {errors.general}
+            {showUnverified && (
+              <button
+                onClick={handleResendVerification}
+                className="block mx-auto mt-2 text-accent hover:underline text-xs font-medium"
+              >
+                確認メールを再送信する
+              </button>
+            )}
           </div>
         )}
 
@@ -121,9 +161,9 @@ export default function LoginPage() {
               <label className="block text-sm font-medium text-text-primary">
                 パスワード
               </label>
-              <a href="#" className="text-xs text-accent hover:underline">
+              <Link href="/auth/forgot-password" className="text-xs text-accent hover:underline">
                 パスワードを忘れた方
-              </a>
+              </Link>
             </div>
             <div className="relative">
               <input
@@ -207,5 +247,13 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
   );
 }

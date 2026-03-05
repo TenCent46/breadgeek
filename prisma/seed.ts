@@ -410,6 +410,7 @@ async function main() {
         name: "田中美咲先生",
         passwordHash: hashedPassword,
         role: "TEACHER",
+        emailVerified: new Date(),
       },
     });
 

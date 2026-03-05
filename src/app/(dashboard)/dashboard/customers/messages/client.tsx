@@ -17,6 +17,7 @@ const statusFilters: { value: MessageStatus | "all"; label: string }[] = [
 const targetOptions = [
   { value: "all", label: "全生徒" },
   { value: "repeater", label: "リピーター" },
+  { value: "regular", label: "レギュラー" },
   { value: "trial", label: "体験生" },
   { value: "dormant", label: "休眠生徒" },
 ];
@@ -102,30 +103,34 @@ export function MessagesClient({ initialMessages, templates }: MessagesClientPro
   const handleSend = async () => {
     if (!formContent.trim()) return;
     const now = new Date().toISOString().slice(0, 10);
+    const status = (formDelivery === "scheduled" ? "scheduled" : "sent") as MessageStatus;
 
-    const messageData = {
+    const actionData = {
       channel: formChannel,
       subject: formSubject,
       content: formContent,
-      status: (formDelivery === "scheduled" ? "scheduled" : "sent") as MessageStatus,
-      recipientCount: formDelivery === "now" ? 45 : 80,
-      sentAt: formDelivery === "now" ? now : undefined,
+      status,
+      target: formTarget as "all" | "repeater" | "trial" | "dormant" | "regular",
       scheduledAt: formDelivery === "scheduled" ? `${formDate}T${formTime}` : undefined,
     };
 
     if (editingId) {
-      // Optimistic update
       setMessages((prev) =>
-        prev.map((m) => (m.id === editingId ? { ...m, ...messageData } : m))
+        prev.map((m) => (m.id === editingId ? { ...m, subject: formSubject, content: formContent, channel: formChannel, status } : m))
       );
       setShowCreate(false);
       resetForm();
-      await updateMessage(editingId, messageData);
+      await updateMessage(editingId, actionData);
     } else {
-      // Optimistic add
       const optimisticMessage: DistributionMessage = {
         id: `temp-${Date.now()}`,
-        ...messageData,
+        channel: formChannel,
+        subject: formSubject,
+        content: formContent,
+        status,
+        recipientCount: 0,
+        sentAt: formDelivery === "now" ? now : undefined,
+        scheduledAt: formDelivery === "scheduled" ? `${formDate}T${formTime}` : undefined,
         openRate: undefined,
         clickRate: undefined,
         createdAt: now,
@@ -133,7 +138,12 @@ export function MessagesClient({ initialMessages, templates }: MessagesClientPro
       setMessages((prev) => [optimisticMessage, ...prev]);
       setShowCreate(false);
       resetForm();
-      await addMessage(messageData);
+      const result = await addMessage(actionData);
+      if (result?.recipientCount !== undefined) {
+        setMessages((prev) =>
+          prev.map((m) => m.id === optimisticMessage.id ? { ...m, recipientCount: result.recipientCount } : m)
+        );
+      }
     }
   };
 
@@ -141,25 +151,29 @@ export function MessagesClient({ initialMessages, templates }: MessagesClientPro
     if (!formContent.trim()) return;
     const now = new Date().toISOString().slice(0, 10);
 
-    const messageData = {
+    const actionData = {
       channel: formChannel,
       subject: formSubject,
       content: formContent,
       status: "draft" as MessageStatus,
-      recipientCount: 0,
+      target: formTarget as "all" | "repeater" | "trial" | "dormant" | "regular",
     };
 
     if (editingId) {
       setMessages((prev) =>
-        prev.map((m) => (m.id === editingId ? { ...m, ...messageData } : m))
+        prev.map((m) => (m.id === editingId ? { ...m, subject: formSubject, content: formContent, channel: formChannel, status: "draft" as MessageStatus } : m))
       );
       setShowCreate(false);
       resetForm();
-      await updateMessage(editingId, messageData);
+      await updateMessage(editingId, actionData);
     } else {
       const optimisticMessage: DistributionMessage = {
         id: `temp-${Date.now()}`,
-        ...messageData,
+        channel: formChannel,
+        subject: formSubject,
+        content: formContent,
+        status: "draft" as MessageStatus,
+        recipientCount: 0,
         openRate: undefined,
         clickRate: undefined,
         createdAt: now,
@@ -167,7 +181,7 @@ export function MessagesClient({ initialMessages, templates }: MessagesClientPro
       setMessages((prev) => [optimisticMessage, ...prev]);
       setShowCreate(false);
       resetForm();
-      await addMessage(messageData);
+      await addMessage(actionData);
     }
   };
 

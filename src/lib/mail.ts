@@ -40,6 +40,42 @@ export async function sendVerificationEmail(email: string, token: string) {
   });
 }
 
+export async function sendDistributionEmail(
+  to: string,
+  subject: string,
+  content: string,
+  schoolName: string
+) {
+  // Convert plain text content to HTML (preserve newlines)
+  const htmlContent = content
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\n/g, "<br>");
+
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject,
+    html: `
+      <div style="max-width:560px;margin:0 auto;font-family:'Helvetica Neue',Arial,sans-serif;color:#1a1a1a">
+        <div style="text-align:center;padding:32px 0 24px">
+          <h1 style="font-size:20px;font-weight:700;margin:0">${schoolName}</h1>
+        </div>
+        <div style="background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:32px">
+          <div style="font-size:14px;line-height:1.8;color:#333">
+            ${htmlContent}
+          </div>
+        </div>
+        <div style="text-align:center;padding:24px 0;font-size:11px;color:#999">
+          このメールは ${schoolName} からお送りしています。<br>
+          Powered by BreadGeek
+        </div>
+      </div>
+    `,
+  });
+}
+
 export async function sendPasswordResetEmail(email: string, token: string) {
   const resetUrl = `${BASE_URL}/auth/reset-password?token=${token}`;
 

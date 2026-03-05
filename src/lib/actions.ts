@@ -11,6 +11,7 @@ import type {
   Service, Booking, Review, Customer, Contact,
   DistributionMessage, Recipe, Ingredient, KitchenSettings,
 } from "@/lib/types";
+import type { CustomerTier } from "@/generated/prisma/client";
 
 // ─── Services ───
 
@@ -169,40 +170,94 @@ export async function deleteContact(id: string) {
 
 // ─── Messages ───
 
-export async function addMessage(data: Omit<DistributionMessage, "id" | "createdAt">) {
+interface SendMessageData {
+  channel: "email" | "line";
+  subject: string;
+  content: string;
+  status: "sent" | "scheduled" | "draft";
+  target: "all" | "repeater" | "trial" | "dormant" | "regular";
+  scheduledAt?: string;
+}
+
+const TIER_MAP: Record<string, CustomerTier> = {
+  repeater: "REPEATER",
+  regular: "REGULAR",
+  trial: "TRIAL",
+  dormant: "DORMANT",
+};
+
+async function getTargetCustomers(schoolId: string, target: string) {
+  return prisma.customer.findMany({
+    where: {
+      schoolId,
+      email: { not: "" },
+      ...(target !== "all" && TIER_MAP[target] ? { tier: TIER_MAP[target] } : {}),
+    },
+    select: { name: true, email: true },
+  });
+}
+
+function renderTemplate(template: string, vars: Record<string, string>) {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? "");
+}
+
+export async function addMessage(data: SendMessageData) {
   const { school } = await requireTeacher();
 
-  await prisma.distributionMessage.create({
+  // Get target recipients
+  const customers = await getTargetCustomers(school.id, data.target);
+  const recipientCount = customers.length;
+
+  // Save to DB
+  const message = await prisma.distributionMessage.create({
     data: {
       schoolId: school.id,
       subject: data.subject,
       content: data.content,
       channel: data.channel === "email" ? "EMAIL" : "LINE",
       status: data.status === "sent" ? "SENT" : data.status === "scheduled" ? "SCHEDULED" : "DRAFT",
-      recipientCount: data.recipientCount,
-      openRate: data.openRate ?? null,
-      clickRate: data.clickRate ?? null,
-      sentAt: data.sentAt ? new Date(data.sentAt) : null,
+      recipientCount,
+      sentAt: data.status === "sent" ? new Date() : null,
       scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : null,
     },
   });
 
+  // Send emails immediately if status is "sent" and channel is "email"
+  if (data.status === "sent" && data.channel === "email" && customers.length > 0) {
+    const { sendDistributionEmail } = await import("@/lib/mail");
+    const results = await Promise.allSettled(
+      customers.map((c) => {
+        const personalizedContent = renderTemplate(data.content, { name: c.name });
+        const personalizedSubject = renderTemplate(data.subject, { name: c.name });
+        return sendDistributionEmail(c.email, personalizedSubject, personalizedContent, school.name);
+      })
+    );
+
+    const successCount = results.filter((r) => r.status === "fulfilled").length;
+
+    // Update actual sent count
+    await prisma.distributionMessage.update({
+      where: { id: message.id },
+      data: { recipientCount: successCount },
+    });
+  }
+
   revalidatePath("/dashboard/customers/messages");
+  return { recipientCount };
 }
 
-export async function updateMessage(id: string, data: Partial<DistributionMessage>) {
+export async function updateMessage(id: string, data: Partial<SendMessageData>) {
   const { school } = await requireTeacher();
 
   await prisma.distributionMessage.update({
     where: { id, schoolId: school.id },
     data: {
-      ...(data.subject && { subject: data.subject }),
-      ...(data.content && { content: data.content }),
+      ...(data.subject !== undefined && { subject: data.subject }),
+      ...(data.content !== undefined && { content: data.content }),
       ...(data.channel && { channel: data.channel === "email" ? "EMAIL" as const : "LINE" as const }),
       ...(data.status && {
         status: data.status === "sent" ? "SENT" as const : data.status === "scheduled" ? "SCHEDULED" as const : "DRAFT" as const,
       }),
-      ...(data.recipientCount !== undefined && { recipientCount: data.recipientCount }),
     },
   });
 

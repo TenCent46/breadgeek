@@ -76,6 +76,99 @@ export async function sendDistributionEmail(
   });
 }
 
+export async function sendBookingConfirmationEmail(
+  to: string,
+  data: {
+    customerName: string;
+    lessonTitle: string;
+    date: string;
+    time: string;
+    participants: number;
+    amount: number;
+    schoolName: string;
+    schoolSlug: string;
+    paymentType: string;
+  }
+) {
+  const paymentLabel = data.paymentType === "on_site" ? "当日現金払い" : "事前カード決済";
+  const lessonUrl = `${BASE_URL}/p/${data.schoolSlug}`;
+
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `【${data.schoolName}】ご予約確認 - ${data.lessonTitle}`,
+    html: `
+      <div style="max-width:480px;margin:0 auto;font-family:'Helvetica Neue',Arial,sans-serif;color:#1a1a1a">
+        <div style="text-align:center;padding:32px 0 24px">
+          <h1 style="font-size:20px;font-weight:700;margin:0">${data.schoolName}</h1>
+        </div>
+        <div style="background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:32px">
+          <h2 style="font-size:18px;font-weight:600;margin:0 0 16px">ご予約ありがとうございます</h2>
+          <p style="font-size:14px;line-height:1.6;color:#555;margin:0 0 20px">
+            ${data.customerName}様、以下の内容でご予約を承りました。
+          </p>
+          <div style="background:#faf8f5;border-radius:8px;padding:20px;margin:0 0 20px">
+            <table style="width:100%;font-size:14px;border-collapse:collapse">
+              <tr><td style="padding:6px 0;color:#888;width:100px">レッスン</td><td style="padding:6px 0;font-weight:600">${data.lessonTitle}</td></tr>
+              <tr><td style="padding:6px 0;color:#888">日時</td><td style="padding:6px 0">${data.date} ${data.time}</td></tr>
+              <tr><td style="padding:6px 0;color:#888">参加人数</td><td style="padding:6px 0">${data.participants}名</td></tr>
+              <tr><td style="padding:6px 0;color:#888">合計金額</td><td style="padding:6px 0;font-weight:600">&yen;${data.amount.toLocaleString()}</td></tr>
+              <tr><td style="padding:6px 0;color:#888">お支払い</td><td style="padding:6px 0">${paymentLabel}</td></tr>
+            </table>
+          </div>
+          <div style="text-align:center;margin:0 0 16px">
+            <a href="${lessonUrl}" style="display:inline-block;background:#D4943A;color:#fff;font-size:14px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:8px">
+              教室ページを見る
+            </a>
+          </div>
+          <p style="font-size:12px;color:#999;margin:0">キャンセルはレッスン前日までにご連絡ください。</p>
+        </div>
+        <div style="text-align:center;padding:24px 0;font-size:11px;color:#999">Powered by BreadGeek</div>
+      </div>
+    `,
+  });
+}
+
+export async function sendBookingNotificationToTeacher(
+  to: string,
+  data: {
+    customerName: string;
+    customerEmail: string;
+    lessonTitle: string;
+    date: string;
+    time: string;
+    participants: number;
+    amount: number;
+  }
+) {
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `【新規予約】${data.customerName}様 - ${data.lessonTitle}`,
+    html: `
+      <div style="max-width:480px;margin:0 auto;font-family:'Helvetica Neue',Arial,sans-serif;color:#1a1a1a">
+        <div style="text-align:center;padding:32px 0 24px">
+          <h1 style="font-size:24px;font-weight:700;margin:0">新規予約通知</h1>
+        </div>
+        <div style="background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:32px">
+          <p style="font-size:14px;color:#555;margin:0 0 20px">新しい予約が入りました。</p>
+          <div style="background:#faf8f5;border-radius:8px;padding:20px">
+            <table style="width:100%;font-size:14px;border-collapse:collapse">
+              <tr><td style="padding:6px 0;color:#888;width:100px">生徒名</td><td style="padding:6px 0;font-weight:600">${data.customerName}</td></tr>
+              <tr><td style="padding:6px 0;color:#888">メール</td><td style="padding:6px 0">${data.customerEmail}</td></tr>
+              <tr><td style="padding:6px 0;color:#888">レッスン</td><td style="padding:6px 0">${data.lessonTitle}</td></tr>
+              <tr><td style="padding:6px 0;color:#888">日時</td><td style="padding:6px 0">${data.date} ${data.time}</td></tr>
+              <tr><td style="padding:6px 0;color:#888">参加人数</td><td style="padding:6px 0">${data.participants}名</td></tr>
+              <tr><td style="padding:6px 0;color:#888">金額</td><td style="padding:6px 0;font-weight:600">&yen;${data.amount.toLocaleString()}</td></tr>
+            </table>
+          </div>
+        </div>
+        <div style="text-align:center;padding:24px 0;font-size:11px;color:#999">Powered by BreadGeek</div>
+      </div>
+    `,
+  });
+}
+
 export async function sendPasswordResetEmail(email: string, token: string) {
   const resetUrl = `${BASE_URL}/auth/reset-password?token=${token}`;
 

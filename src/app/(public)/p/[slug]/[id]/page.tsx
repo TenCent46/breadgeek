@@ -37,6 +37,8 @@ export default async function LessonDetailPage({
       serviceReviews={serviceReviews}
       linkedRecipe={linkedRecipe}
       ownerName={school.owner.name || ""}
+      schoolName={school.name}
+      allowGuestBooking={school.allowGuestBooking}
     />
   );
 }

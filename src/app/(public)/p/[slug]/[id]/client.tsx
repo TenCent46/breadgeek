@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Badge } from "@/components/ui/badge";
 import type { Service, Review, Recipe } from "@/lib/types";
 import {
@@ -16,6 +17,7 @@ import {
   Minus,
   Plus,
   CheckCircle,
+  Loader2,
 } from "lucide-react";
 
 const LESSON_IMAGES = [
@@ -41,6 +43,8 @@ interface LessonDetailClientProps {
   serviceReviews: Review[];
   linkedRecipe?: Recipe;
   ownerName: string;
+  schoolName: string;
+  allowGuestBooking: boolean;
 }
 
 export function LessonDetailClient({
@@ -49,11 +53,22 @@ export function LessonDetailClient({
   serviceReviews,
   linkedRecipe,
   ownerName,
+  schoolName,
+  allowGuestBooking,
 }: LessonDetailClientProps) {
   const router = useRouter();
+  const { data: session, status: authStatus } = useSession();
 
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [participants, setParticipants] = useState(1);
+  const [booking, setBooking] = useState(false);
+  const [error, setError] = useState("");
+
+  // Guest form fields
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [showGuestForm, setShowGuestForm] = useState(false);
 
   const serviceImage = service.images[0] || LESSON_IMAGES[0];
 
@@ -88,12 +103,70 @@ export function LessonDetailClient({
     if (participants < maxParticipants) setParticipants(participants + 1);
   };
 
-  const handleBook = () => {
+  const handleBook = async () => {
     if (!selectedSchedule) return;
-    const dateLabel = `${formatDate(selectedSchedule.date)} ${selectedSchedule.startTime}〜${selectedSchedule.endTime}`;
-    router.push(
-      `/p/${slug}/complete?lesson=${encodeURIComponent(service.title)}&date=${encodeURIComponent(dateLabel)}&count=${participants}&total=${service.price * participants}`
-    );
+
+    // Not logged in
+    if (!session?.user) {
+      if (!allowGuestBooking) {
+        // Redirect to login with return URL
+        const returnUrl = `/p/${slug}/${service.id}`;
+        router.push(`/login?callbackUrl=${encodeURIComponent(returnUrl)}`);
+        return;
+      }
+      // Show guest form if not already visible
+      if (!showGuestForm) {
+        setShowGuestForm(true);
+        return;
+      }
+      // Validate guest fields
+      if (!guestName.trim() || !guestEmail.trim()) {
+        setError("お名前とメールアドレスは必須です");
+        return;
+      }
+    }
+
+    setBooking(true);
+    setError("");
+
+    try {
+      const body: Record<string, unknown> = {
+        serviceId: service.id,
+        scheduleId: selectedSchedule.id,
+        participants,
+      };
+
+      if (!session?.user) {
+        body.guestName = guestName.trim();
+        body.guestEmail = guestEmail.trim();
+        body.guestPhone = guestPhone.trim() || undefined;
+      }
+
+      const res = await fetch("/api/booking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          setError("ログインが必要です。");
+        } else if (res.status === 409) {
+          setError("申し訳ございません。満席になりました。");
+        } else {
+          setError(data.error || "予約に失敗しました。もう一度お試しください。");
+        }
+        return;
+      }
+
+      router.push(`/p/${slug}/complete?bookingId=${data.bookingId}`);
+    } catch {
+      setError("通信エラーが発生しました。もう一度お試しください。");
+    } finally {
+      setBooking(false);
+    }
   };
 
   const initial = ownerName.charAt(0) || "先";
@@ -101,7 +174,7 @@ export function LessonDetailClient({
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       <div className="flex flex-col lg:flex-row gap-8">
-        {/* ── Left Column ── */}
+        {/* Left Column */}
         <div className="flex-1 lg:w-2/3 min-w-0 space-y-8">
           <Link
             href={`/p/${slug}`}
@@ -256,7 +329,7 @@ export function LessonDetailClient({
           )}
         </div>
 
-        {/* ── Right Column (Sticky Sidebar) ── */}
+        {/* Right Column (Sticky Sidebar) */}
         <div className="lg:w-1/3">
           <div className="lg:sticky lg:top-8 space-y-6">
             <div className="bg-white rounded-xl border border-border-light p-6 space-y-6">
@@ -345,6 +418,36 @@ export function LessonDetailClient({
                 </div>
               </div>
 
+              {/* Guest Form */}
+              {showGuestForm && !session?.user && (
+                <div className="space-y-3 border-t border-border-light pt-4">
+                  <p className="text-sm font-medium text-text-primary">
+                    ゲスト予約情報
+                  </p>
+                  <input
+                    type="text"
+                    placeholder="お名前 *"
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-border-light text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                  />
+                  <input
+                    type="email"
+                    placeholder="メールアドレス *"
+                    value={guestEmail}
+                    onChange={(e) => setGuestEmail(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-border-light text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="電話番号（任意）"
+                    value={guestPhone}
+                    onChange={(e) => setGuestPhone(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-border-light text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                  />
+                </div>
+              )}
+
               <div className="flex items-center justify-between border-t border-border-light pt-4">
                 <span className="text-sm font-medium text-text-secondary">
                   合計
@@ -354,13 +457,43 @@ export function LessonDetailClient({
                 </span>
               </div>
 
+              {error && (
+                <p className="text-sm text-error">{error}</p>
+              )}
+
               <button
                 onClick={handleBook}
-                disabled={!selectedDate}
-                className="w-full py-3 rounded-xl bg-accent text-white font-medium text-center transition-colors hover:bg-accent/90 disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled={!selectedDate || booking}
+                className="w-full py-3 rounded-xl bg-accent text-white font-medium text-center transition-colors hover:bg-accent/90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                予約する
+                {booking ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    予約中...
+                  </>
+                ) : showGuestForm && !session?.user ? (
+                  "予約を確定する"
+                ) : !session?.user && !allowGuestBooking ? (
+                  "ログインして予約する"
+                ) : (
+                  "予約する"
+                )}
               </button>
+
+              {!session?.user && authStatus !== "loading" && (
+                <p className="text-xs text-text-tertiary text-center">
+                  {allowGuestBooking ? (
+                    <>
+                      <Link href={`/login?callbackUrl=${encodeURIComponent(`/p/${slug}/${service.id}`)}`} className="text-accent hover:underline">
+                        ログイン
+                      </Link>
+                      すると次回から入力不要
+                    </>
+                  ) : (
+                    "予約にはログインが必要です"
+                  )}
+                </p>
+              )}
 
               <div className="space-y-2 text-sm text-text-secondary">
                 {service.capacity && (

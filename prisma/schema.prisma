@@ -156,7 +156,8 @@ model School {
   x           String  @default("")
   youtube     String  @default("")
   line        String  @default("")
-  tiktok      String  @default("")
+  tiktok             String  @default("")
+  allowGuestBooking  Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -244,11 +245,13 @@ model Customer {
 // ─── Booking ───
 
 model Booking {
-  id         String        @id @default(cuid())
-  serviceId  String
-  customerId String
-  scheduleId String?
-  date       DateTime
+  id            String        @id @default(cuid())
+  serviceId     String
+  customerId    String
+  scheduleId    String?
+  participants  Int           @default(1)
+  paymentType   String        @default("on_site")
+  date          DateTime
   startTime  String
   endTime    String
   status     BookingStatus @default(PENDING)

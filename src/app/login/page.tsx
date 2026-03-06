@@ -97,11 +97,11 @@ function LoginContent() {
 
   return (
     <div className="min-h-screen bg-bg-secondary flex flex-col items-center justify-center px-4">
-      <div className="mb-8">
+      <div className="mb-8 animate-fade-up">
         <Logo />
       </div>
 
-      <div className="w-full max-w-[480px] bg-white rounded-xl shadow-sm p-8">
+      <div className="w-full max-w-[480px] bg-white rounded-2xl shadow-sm p-8 animate-fade-up-delay-1">
         <h1 className="text-2xl font-bold text-text-primary text-center mb-2">
           ログイン
         </h1>

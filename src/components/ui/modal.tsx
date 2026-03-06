@@ -34,11 +34,11 @@ export function Modal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className={`relative bg-white rounded-xl shadow-lg w-full ${widthClass} max-h-[85vh] flex flex-col mx-4`}>
+      <div className="absolute inset-0 bg-black/40 animate-fade-in" onClick={onClose} />
+      <div className={`relative bg-white rounded-2xl shadow-lg w-full ${widthClass} max-h-[85vh] flex flex-col mx-4 animate-scale-in`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-border-light shrink-0">
           <h2 className="text-lg font-bold text-text-primary">{title}</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-bg-secondary transition-colors text-text-secondary">
+          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-bg-secondary transition-colors text-text-secondary btn-press">
             <X size={20} />
           </button>
         </div>
@@ -71,11 +71,11 @@ export function SlideOver({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40 animate-fade-in" onClick={onClose} />
       <div className="relative bg-white w-full max-w-md h-full shadow-lg flex flex-col animate-slide-in">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border-light shrink-0">
           <h2 className="text-lg font-bold text-text-primary">{title}</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-bg-secondary transition-colors text-text-secondary">
+          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-bg-secondary transition-colors text-text-secondary btn-press">
             <X size={20} />
           </button>
         </div>

@@ -14,12 +14,14 @@ export function StatCard({
   iconColor: string;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-border-light p-5">
+    <div className="bg-white rounded-2xl border border-border-light p-5 card-hover">
       <div className="flex items-center justify-between mb-3">
         <span className="text-sm text-text-secondary">{label}</span>
-        <Icon size={20} className={iconColor} />
+        <div className={`p-2 rounded-xl bg-bg-tertiary`}>
+          <Icon size={18} className={iconColor} />
+        </div>
       </div>
-      <p className="text-2xl font-bold text-text-primary">{value}</p>
+      <p className="text-2xl font-bold text-text-primary font-heading">{value}</p>
       {change && <p className="text-xs text-text-tertiary mt-1">{change}</p>}
     </div>
   );

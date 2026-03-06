@@ -5,14 +5,15 @@ export function Logo({ size = "default" }: { size?: "default" | "small" }) {
   const textSize = size === "small" ? "text-lg" : "text-xl";
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2.5">
       <Wheat
         size={iconSize}
         className="text-accent"
-        strokeWidth={2.2}
+        strokeWidth={2}
       />
-      <span className={`${textSize} font-bold tracking-tight text-primary`}>
-        BREAD<span className="text-accent">GEEK</span>
+      <span className={`${textSize} tracking-tight`}>
+        <span className="font-display font-semibold text-primary">Bread</span>
+        <span className="font-display font-semibold text-accent">Geek</span>
       </span>
     </div>
   );

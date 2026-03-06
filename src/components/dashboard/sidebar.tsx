@@ -107,12 +107,15 @@ export function Sidebar() {
         {/* Home */}
         <Link
           href="/dashboard"
-          className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors mb-1 ${
+          className={`relative flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 mb-1 ${
             isActive("/dashboard")
-              ? "bg-bg-secondary font-medium text-text-primary"
+              ? "bg-accent/8 font-medium text-accent"
               : "text-text-secondary hover:bg-bg-secondary/60"
           }`}
         >
+          {isActive("/dashboard") && (
+            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 bg-accent rounded-full sidebar-indicator" />
+          )}
           <Home size={18} />
           ホーム
         </Link>
@@ -143,12 +146,15 @@ export function Sidebar() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+                    className={`relative flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all duration-200 ${
                       isActive(item.href)
-                        ? "bg-bg-secondary font-medium text-text-primary"
+                        ? "bg-accent/8 font-medium text-accent"
                         : "text-text-secondary hover:bg-bg-secondary/60"
                     }`}
                   >
+                    {isActive(item.href) && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 bg-accent rounded-full sidebar-indicator" />
+                    )}
                     <span className="leading-tight">{item.label}</span>
                   </Link>
                 ))}

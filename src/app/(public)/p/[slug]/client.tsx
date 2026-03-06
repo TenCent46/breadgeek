@@ -280,7 +280,7 @@ export function ClassroomClient({
                 <Link
                   key={service.id}
                   href={`/p/${slug}/${service.id}`}
-                  className="group bg-white rounded-xl border border-border-light overflow-hidden hover:shadow-md transition-shadow"
+                  className="group bg-white rounded-2xl border border-border-light overflow-hidden card-hover"
                 >
                   <div className="relative h-48 overflow-hidden">
                     <img

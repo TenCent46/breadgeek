@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme inline {
-  /* パンをイメージした温かみのあるカラーパレット */
+  /* --- Color Palette (warm bread-inspired) --- */
   --color-primary: #6B4226;
   --color-primary-hover: #8B5E3C;
   --color-accent: #D4943A;
@@ -19,8 +19,14 @@
   --color-warning: #D4943A;
   --color-error: #C0392B;
   --color-info: #5B8DB8;
+
+  /* --- Font Stacks --- */
   --font-sans: "Noto Sans JP", "Hiragino Sans", sans-serif;
+  --font-heading: var(--font-zen-maru), "Zen Maru Gothic", "Noto Sans JP", sans-serif;
+  --font-display: var(--font-playfair), "Playfair Display", Georgia, serif;
 }
+
+/* ─── Base ─── */
 
 body {
   background: var(--color-bg-secondary);
@@ -28,37 +34,213 @@ body {
   font-family: var(--font-sans);
 }
 
-/* Smooth scroll */
 html {
   scroll-behavior: smooth;
 }
 
-/* Slide-in animation for modals */
+/* Heading font: Zen Maru Gothic (soft, rounded) */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+/* ─── Utility Classes ─── */
+
+.font-heading {
+  font-family: var(--font-heading);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* ─── Keyframe Animations ─── */
+
+/* Slide-in from right (modals/slide-overs) */
 @keyframes slide-in {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
 }
 .animate-slide-in {
-  animation: slide-in 0.25s ease-out;
+  animation: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Fade up animation */
+/* Fade up (page entrance) */
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(24px); }
+  from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
 .animate-fade-up {
-  animation: fade-up 0.6s ease-out forwards;
+  animation: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 .animate-fade-up-delay-1 {
-  animation: fade-up 0.6s ease-out 0.15s forwards;
+  animation: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards;
   opacity: 0;
 }
 .animate-fade-up-delay-2 {
-  animation: fade-up 0.6s ease-out 0.3s forwards;
+  animation: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
   opacity: 0;
 }
 .animate-fade-up-delay-3 {
-  animation: fade-up 0.6s ease-out 0.45s forwards;
+  animation: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards;
   opacity: 0;
+}
+.animate-fade-up-delay-4 {
+  animation: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.4s forwards;
+  opacity: 0;
+}
+
+/* Fade in */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out forwards;
+}
+
+/* Scale in (badges, toasts) */
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-scale-in {
+  animation: scale-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Slide down (dropdowns, toasts) */
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-down {
+  animation: slide-down 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Shimmer (skeleton loading) */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-tertiary) 25%,
+    var(--color-bg-secondary) 37%,
+    var(--color-bg-tertiary) 63%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+
+/* Gentle pulse for new items */
+@keyframes soft-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.animate-soft-pulse {
+  animation: soft-pulse 2s ease-in-out infinite;
+}
+
+/* Bounce subtle (success checkmark) */
+@keyframes bounce-in {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-bounce-in {
+  animation: bounce-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Count up number animation helper */
+@keyframes count-fade {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-count-fade {
+  animation: count-fade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Wiggle (for bread icon loader) */
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-8deg); }
+  75% { transform: rotate(8deg); }
+}
+.animate-wiggle {
+  animation: wiggle 0.8s ease-in-out infinite;
+}
+
+/* ─── Interactive States (Micro-interactions) ─── */
+
+/* Buttons: press feedback */
+.btn-press {
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-press:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Cards: hover lift */
+.card-hover {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px rgba(107, 66, 38, 0.08),
+              0 4px 10px -5px rgba(107, 66, 38, 0.04);
+}
+
+/* Link hover: subtle underline grow */
+.link-hover {
+  position: relative;
+  transition: color 0.2s ease;
+}
+.link-hover::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1.5px;
+  background: var(--color-accent);
+  transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.link-hover:hover::after {
+  width: 100%;
+}
+
+/* Sidebar active indicator slide */
+.sidebar-indicator {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Focus ring */
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* Smooth image reveal */
+.img-reveal {
+  opacity: 0;
+  transition: opacity 0.5s ease-out;
+}
+.img-reveal.loaded {
+  opacity: 1;
+}
+
+/* Tab indicator animation */
+.tab-indicator {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Toast container */
+.toast-enter {
+  animation: slide-down 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+             fade-in 0.2s ease-out forwards;
+}
+.toast-exit {
+  animation: fade-up 0.25s ease-in forwards;
+  animation-direction: reverse;
 }

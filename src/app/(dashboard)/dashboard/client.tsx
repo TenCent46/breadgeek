@@ -190,11 +190,11 @@ export function DashboardHomeClient({
 
   return (
     <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-8 animate-fade-up">
         <h1 className="text-2xl font-bold text-text-primary">ホーム</h1>
         <Link
           href="/dashboard/services/new"
-          className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-hover transition-colors"
+          className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-primary-hover transition-all btn-press"
         >
           <Plus size={16} />
           新規レッスンを作成
@@ -202,17 +202,19 @@ export function DashboardHomeClient({
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8 animate-fade-up-delay-1">
         {stats.map((stat) => (
           <div
             key={stat.label}
-            className="bg-white rounded-xl border border-border-light p-5"
+            className="bg-white rounded-2xl border border-border-light p-5 card-hover"
           >
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm text-text-secondary">{stat.label}</span>
-              <stat.icon size={20} className={stat.color} />
+              <div className="p-2 rounded-xl bg-bg-tertiary">
+                <stat.icon size={18} className={stat.color} />
+              </div>
             </div>
-            <p className="text-2xl font-bold text-text-primary">{stat.value}</p>
+            <p className="text-2xl font-bold text-text-primary font-heading">{stat.value}</p>
             <p className="text-xs text-text-tertiary mt-1">{stat.change}</p>
           </div>
         ))}
@@ -220,7 +222,7 @@ export function DashboardHomeClient({
 
       {/* Getting Started Checklist */}
       {completedChecks < checks.length && (
-        <div className="bg-white rounded-xl border border-border-light p-6 mb-6">
+        <div className="bg-white rounded-2xl border border-border-light p-6 mb-6 animate-fade-up-delay-2">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-text-primary">
               はじめましょう
@@ -262,7 +264,7 @@ export function DashboardHomeClient({
 
       {/* Ingredient Alerts */}
       {lowStockIngredients.length > 0 && (
-        <div className="bg-warning/5 border border-warning/30 rounded-xl p-6 mb-6">
+        <div className="bg-warning/5 border border-warning/30 rounded-2xl p-6 mb-6 animate-fade-up-delay-2">
           <div className="flex items-center gap-2 mb-4">
             <AlertTriangle size={20} className="text-warning" />
             <h2 className="text-lg font-bold text-text-primary">
@@ -304,9 +306,9 @@ export function DashboardHomeClient({
       )}
 
       {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 animate-fade-up-delay-3">
         {/* Recent Bookings */}
-        <div className="bg-white rounded-xl border border-border-light p-6">
+        <div className="bg-white rounded-2xl border border-border-light p-6 card-hover">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-text-primary">
               直近の予約
@@ -360,7 +362,7 @@ export function DashboardHomeClient({
         </div>
 
         {/* 7-Day Profit Mini Bar Chart */}
-        <div className="bg-white rounded-xl border border-border-light p-6">
+        <div className="bg-white rounded-2xl border border-border-light p-6 card-hover">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-text-primary">
               7日間の利益
@@ -399,9 +401,9 @@ export function DashboardHomeClient({
       </div>
 
       {/* Quick Actions & Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-up-delay-4">
         {/* Quick Actions */}
-        <div className="bg-white rounded-xl border border-border-light p-6">
+        <div className="bg-white rounded-2xl border border-border-light p-6 card-hover">
           <h2 className="text-lg font-bold text-text-primary mb-4">
             クイックアクション
           </h2>
@@ -446,7 +448,7 @@ export function DashboardHomeClient({
         </div>
 
         {/* Activity Feed */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-border-light p-6">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-border-light p-6 card-hover">
           <h2 className="text-lg font-bold text-text-primary mb-4">
             最近のアクティビティ
           </h2>

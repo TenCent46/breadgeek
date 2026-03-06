@@ -1,7 +1,35 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getServices, getReviews } from "@/lib/dal";
 import { ClassroomClient } from "./client";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const school = await prisma.school.findUnique({
+    where: { slug },
+    select: { name: true, description: true, imageUrl: true },
+  });
+
+  if (!school) return { title: "教室が見つかりません" };
+
+  const title = `${school.name} - BreadGeek`;
+  const description = school.description || `${school.name}のパン教室ページ`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      ...(school.imageUrl ? { images: [school.imageUrl] } : {}),
+    },
+  };
+}
 
 export default async function ClassroomPage({
   params,

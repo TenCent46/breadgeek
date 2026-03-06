@@ -23,6 +23,8 @@ export interface ServiceSearchDoc {
   location: string | null;
   imageUrl: string | null;
   hasAvailability: boolean;
+  nextScheduleDate: string | null;
+  region: string | null;
 }
 
 export interface SchoolSearchDoc {

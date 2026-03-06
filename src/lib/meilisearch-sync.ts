@@ -11,29 +11,37 @@ export async function syncServicesToMeilisearch() {
   const services = await prisma.service.findMany({
     where: { status: "PUBLISHED" },
     include: {
-      school: { select: { id: true, name: true, slug: true } },
-      schedules: { select: { spotsTaken: true, spotsTotal: true } },
+      school: { select: { id: true, name: true, slug: true, location: true } },
+      schedules: { select: { date: true, spotsTaken: true, spotsTotal: true }, orderBy: { date: "asc" as const } },
     },
   });
 
-  const docs: ServiceSearchDoc[] = services.map((s) => ({
-    id: s.id,
-    schoolId: s.school.id,
-    schoolName: s.school.name,
-    schoolSlug: s.school.slug,
-    title: s.title,
-    description: s.description,
-    type: s.type,
-    category: s.category,
-    price: s.price,
-    capacity: s.capacity,
-    duration: s.duration,
-    location: s.location,
-    imageUrl: s.images[0] || null,
-    hasAvailability: s.schedules.some(
-      (sc) => sc.spotsTotal - sc.spotsTaken > 0
-    ),
-  }));
+  const now = new Date();
+  const docs: ServiceSearchDoc[] = services.map((s) => {
+    const futureSchedules = s.schedules.filter(
+      (sc) => sc.date >= now && sc.spotsTotal - sc.spotsTaken > 0
+    );
+    const location = s.location || s.school.location || null;
+
+    return {
+      id: s.id,
+      schoolId: s.school.id,
+      schoolName: s.school.name,
+      schoolSlug: s.school.slug,
+      title: s.title,
+      description: s.description,
+      type: s.type,
+      category: s.category,
+      price: s.price,
+      capacity: s.capacity,
+      duration: s.duration,
+      location,
+      imageUrl: s.images[0] || null,
+      hasAvailability: futureSchedules.length > 0,
+      nextScheduleDate: futureSchedules[0]?.date.toISOString() || null,
+      region: location ? location.split(/[　\s]/)[0] : null,
+    };
+  });
 
   const index = meili.index(SERVICES_INDEX);
   await index.addDocuments(docs, { primaryKey: "id" });
@@ -96,7 +104,7 @@ export async function configureMeilisearchIndexes() {
       "hasAvailability",
       "schoolId",
     ],
-    sortableAttributes: ["price"],
+    sortableAttributes: ["price", "nextScheduleDate"],
     displayedAttributes: [
       "id",
       "schoolId",
@@ -112,6 +120,8 @@ export async function configureMeilisearchIndexes() {
       "location",
       "imageUrl",
       "hasAvailability",
+      "nextScheduleDate",
+      "region",
     ],
   });
 

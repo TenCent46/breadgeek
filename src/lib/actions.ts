@@ -142,6 +142,136 @@ export async function markPaymentReceived(bookingId: string) {
   revalidatePath("/dashboard/sales");
 }
 
+// ─── Schedules ───
+
+interface BulkScheduleData {
+  serviceId: string;
+  dayOfWeek: number; // 0=Sun, 1=Mon, ..., 6=Sat
+  startTime: string;
+  endTime: string;
+  spotsTotal: number;
+  weeks: number; // How many weeks to generate
+  startDate: string; // ISO date to start from
+}
+
+export async function bulkCreateSchedules(data: BulkScheduleData) {
+  const { school } = await requireTeacher();
+
+  // Verify service belongs to school
+  const service = await prisma.service.findFirst({
+    where: { id: data.serviceId, schoolId: school.id },
+  });
+  if (!service) return;
+
+  const schedules: { date: Date; startTime: string; endTime: string; spotsTotal: number }[] = [];
+  const start = new Date(data.startDate);
+
+  for (let w = 0; w < data.weeks; w++) {
+    const date = new Date(start);
+    date.setDate(date.getDate() + w * 7);
+
+    // Adjust to the correct day of week
+    const currentDay = date.getDay();
+    const diff = data.dayOfWeek - currentDay;
+    date.setDate(date.getDate() + diff);
+
+    // Only add if it's in the future
+    if (date >= start) {
+      schedules.push({
+        date,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        spotsTotal: data.spotsTotal,
+      });
+    }
+  }
+
+  if (schedules.length > 0) {
+    await prisma.serviceSchedule.createMany({
+      data: schedules.map((s) => ({
+        serviceId: data.serviceId,
+        ...s,
+      })),
+    });
+  }
+
+  revalidatePath("/dashboard/services");
+  revalidatePath(`/dashboard/services/${data.serviceId}`);
+  return { created: schedules.length };
+}
+
+export async function deleteSchedule(scheduleId: string) {
+  const { school } = await requireTeacher();
+
+  const schedule = await prisma.serviceSchedule.findFirst({
+    where: { id: scheduleId, service: { schoolId: school.id } },
+    include: { service: true },
+  });
+  if (!schedule) return;
+
+  // Check if any bookings exist for this schedule
+  const bookingCount = await prisma.booking.count({
+    where: { scheduleId, status: { in: ["CONFIRMED", "PENDING"] } },
+  });
+
+  if (bookingCount > 0) {
+    return { error: "この日程には予約が入っているため削除できません" };
+  }
+
+  await prisma.serviceSchedule.delete({ where: { id: scheduleId } });
+
+  revalidatePath("/dashboard/services");
+  revalidatePath(`/dashboard/services/${schedule.serviceId}`);
+  return { deleted: true };
+}
+
+export async function cancelScheduleWithNotification(scheduleId: string) {
+  const { school } = await requireTeacher();
+
+  const schedule = await prisma.serviceSchedule.findFirst({
+    where: { id: scheduleId, service: { schoolId: school.id } },
+    include: {
+      service: { select: { id: true, title: true } },
+    },
+  });
+  if (!schedule) return;
+
+  // Cancel all bookings for this schedule
+  const bookings = await prisma.booking.findMany({
+    where: { scheduleId, status: { in: ["CONFIRMED", "PENDING"] } },
+    include: { customer: { select: { name: true, email: true } } },
+  });
+
+  // Update all bookings to cancelled
+  if (bookings.length > 0) {
+    await prisma.booking.updateMany({
+      where: { scheduleId, status: { in: ["CONFIRMED", "PENDING"] } },
+      data: { status: "CANCELLED" },
+    });
+
+    // Send cancellation emails
+    const { sendBookingCancellationEmail } = await import("@/lib/mail");
+    await Promise.allSettled(
+      bookings.map((b) =>
+        sendBookingCancellationEmail(b.customer.email, {
+          customerName: b.customer.name,
+          lessonTitle: schedule.service.title,
+          date: schedule.date.toLocaleDateString("ja-JP"),
+          time: schedule.startTime,
+          schoolName: school.name,
+        })
+      )
+    );
+  }
+
+  // Delete the schedule
+  await prisma.serviceSchedule.delete({ where: { id: scheduleId } });
+
+  revalidatePath("/dashboard/services");
+  revalidatePath(`/dashboard/services/${schedule.service.id}`);
+  return { cancelled: bookings.length };
+}
+
 // ─── Customers ───
 
 export async function updateCustomer(id: string, data: Partial<Pick<Customer, "notes" | "tags">>) {

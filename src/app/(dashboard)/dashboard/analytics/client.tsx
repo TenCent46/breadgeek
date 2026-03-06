@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { StatCard } from "@/components/ui/stat-card";
 import { Badge } from "@/components/ui/badge";
-import type { Booking, Customer, Service, KitchenSettings } from "@/lib/types";
+import type { Booking, Customer, Service, KitchenSettings, MonthlySales } from "@/lib/types";
 
 function formatCurrency(amount: number) {
   return `\u00a5${Math.round(amount).toLocaleString()}`;
@@ -39,9 +39,10 @@ interface AnalyticsClientProps {
   customers: Customer[];
   services: Service[];
   settings: KitchenSettings;
+  monthlySales: MonthlySales[];
 }
 
-export function AnalyticsClient({ bookings, customers, services, settings }: AnalyticsClientProps) {
+export function AnalyticsClient({ bookings, customers, services, settings, monthlySales }: AnalyticsClientProps) {
   const publishedServices = useMemo(
     () => services.filter((s) => s.status === "published"),
     [services]
@@ -364,6 +365,43 @@ export function AnalyticsClient({ bookings, customers, services, settings }: Ana
           </div>
         </div>
       </div>
+
+      {/* Monthly Revenue Trend */}
+      {monthlySales.length > 0 && (
+        <div className="bg-white rounded-xl border border-border-light p-6 mb-6">
+          <h2 className="text-lg font-bold text-text-primary mb-6 flex items-center gap-2">
+            <TrendingUp size={20} className="text-accent" />
+            月別売上推移
+          </h2>
+          <div className="flex items-end gap-2 h-48">
+            {(() => {
+              const maxRevenue = Math.max(...monthlySales.map((m) => m.revenue), 1);
+              // Show last 6 months
+              const recent = monthlySales.slice(-6);
+              return recent.map((m) => {
+                const heightPct = (m.revenue / maxRevenue) * 100;
+                return (
+                  <div key={m.month} className="flex-1 flex flex-col items-center justify-end h-full">
+                    <span className="text-xs font-bold text-text-primary mb-1">
+                      {formatCurrency(m.revenue)}
+                    </span>
+                    <div
+                      className="w-full bg-accent rounded-t-md transition-all"
+                      style={{ height: `${Math.max(heightPct, 4)}%` }}
+                    />
+                    <span className="text-xs text-text-tertiary mt-2">
+                      {m.month.slice(5)}月
+                    </span>
+                    <span className="text-xs text-text-tertiary">
+                      {m.transactions}件
+                    </span>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Popularity Ranking */}

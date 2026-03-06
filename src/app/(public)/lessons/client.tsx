@@ -14,6 +14,7 @@ import {
   ArrowRight,
   SlidersHorizontal,
   X,
+  ChevronDown,
 } from "lucide-react";
 
 const LESSON_IMAGES = [
@@ -42,9 +43,25 @@ const CATEGORIES = [
   "季節限定",
 ] as const;
 
+const PRICE_RANGES = [
+  { label: "すべて", min: 0, max: Infinity },
+  { label: "~3,000円", min: 0, max: 3000 },
+  { label: "3,000~5,000円", min: 3000, max: 5000 },
+  { label: "5,000~10,000円", min: 5000, max: 10000 },
+  { label: "10,000円~", min: 10000, max: Infinity },
+];
+
+const SORT_OPTIONS = [
+  { label: "新着順", value: "newest" },
+  { label: "価格が安い順", value: "price_asc" },
+  { label: "価格が高い順", value: "price_desc" },
+  { label: "日程が近い順", value: "date_asc" },
+] as const;
+
 interface LessonsClientProps {
   initialResults: ServiceSearchDoc[];
   schools: SchoolSearchDoc[];
+  regions: string[];
   meilisearchHost: string;
   meilisearchKey: string;
 }
@@ -52,6 +69,7 @@ interface LessonsClientProps {
 export function LessonsClient({
   initialResults,
   schools,
+  regions,
   meilisearchHost,
   meilisearchKey,
 }: LessonsClientProps) {
@@ -60,13 +78,43 @@ export function LessonsClient({
   const [results, setResults] = useState<ServiceSearchDoc[]>(initialResults);
   const [isSearching, setIsSearching] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedRegion, setSelectedRegion] = useState("すべて");
+  const [selectedPriceRange, setSelectedPriceRange] = useState(0);
+  const [onlyAvailable, setOnlyAvailable] = useState(false);
+  const [sortBy, setSortBy] = useState<string>("newest");
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (selectedRegion !== "すべて") count++;
+    if (selectedPriceRange !== 0) count++;
+    if (onlyAvailable) count++;
+    return count;
+  }, [selectedRegion, selectedPriceRange, onlyAvailable]);
 
   const filteredResults = useMemo(() => {
     let filtered = results;
 
-    // Client-side category filter
+    // Category filter
     if (activeCategory !== "すべて") {
       filtered = filtered.filter((r) => r.category === activeCategory);
+    }
+
+    // Region filter
+    if (selectedRegion !== "すべて") {
+      filtered = filtered.filter((r) => r.region === selectedRegion);
+    }
+
+    // Price range filter
+    const priceRange = PRICE_RANGES[selectedPriceRange];
+    if (priceRange.min > 0 || priceRange.max < Infinity) {
+      filtered = filtered.filter(
+        (r) => r.price >= priceRange.min && r.price <= priceRange.max
+      );
+    }
+
+    // Availability filter
+    if (onlyAvailable) {
+      filtered = filtered.filter((r) => r.hasAvailability);
     }
 
     // Client-side text filter (when no Meilisearch)
@@ -81,8 +129,25 @@ export function LessonsClient({
       );
     }
 
+    // Sort
+    filtered = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case "price_asc":
+          return a.price - b.price;
+        case "price_desc":
+          return b.price - a.price;
+        case "date_asc": {
+          const dateA = a.nextScheduleDate ? new Date(a.nextScheduleDate).getTime() : Infinity;
+          const dateB = b.nextScheduleDate ? new Date(b.nextScheduleDate).getTime() : Infinity;
+          return dateA - dateB;
+        }
+        default:
+          return 0; // keep server order (newest)
+      }
+    });
+
     return filtered;
-  }, [results, activeCategory, query, meilisearchHost]);
+  }, [results, activeCategory, selectedRegion, selectedPriceRange, onlyAvailable, query, meilisearchHost, sortBy]);
 
   const handleSearch = async (searchQuery: string) => {
     setQuery(searchQuery);
@@ -104,16 +169,22 @@ export function LessonsClient({
       });
       setResults(searchResults.hits);
     } catch {
-      // Fallback to initial results on error
       setResults(initialResults);
     } finally {
       setIsSearching(false);
     }
   };
 
+  const clearFilters = () => {
+    setSelectedRegion("すべて");
+    setSelectedPriceRange(0);
+    setOnlyAvailable(false);
+    setSortBy("newest");
+  };
+
   return (
     <div className="min-h-screen bg-bg-primary">
-      {/* ─── Hero / Search Bar ─── */}
+      {/* Hero / Search Bar */}
       <section className="bg-white border-b border-border-light">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
           <h1 className="text-2xl md:text-3xl font-bold text-text-primary mb-2">
@@ -124,7 +195,6 @@ export function LessonsClient({
             全国のパン教室からお気に入りのレッスンを見つけましょう
           </p>
 
-          {/* Search bar */}
           <div className="relative max-w-2xl">
             <Search
               size={20}
@@ -149,7 +219,7 @@ export function LessonsClient({
         </div>
       </section>
 
-      {/* ─── Category Filter ─── */}
+      {/* Category Filter + Sort */}
       <section className="sticky top-0 z-20 bg-white border-b border-border-light">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between py-3">
@@ -168,18 +238,118 @@ export function LessonsClient({
                 </button>
               ))}
             </div>
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="shrink-0 ml-4 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-text-secondary hover:bg-bg-secondary transition-colors"
-            >
-              <SlidersHorizontal size={16} />
-              フィルター
-            </button>
+            <div className="flex items-center gap-2 shrink-0 ml-4">
+              {/* Sort dropdown */}
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="appearance-none bg-bg-secondary text-text-secondary text-sm pl-3 pr-8 py-1.5 rounded-lg cursor-pointer hover:bg-bg-tertiary transition-colors"
+                >
+                  {SORT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none" />
+              </div>
+
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                  activeFilterCount > 0
+                    ? "bg-accent/10 text-accent font-medium"
+                    : "text-text-secondary hover:bg-bg-secondary"
+                }`}
+              >
+                <SlidersHorizontal size={16} />
+                フィルター
+                {activeFilterCount > 0 && (
+                  <span className="bg-accent text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ─── Results ─── */}
+      {/* Filter Panel */}
+      {showFilters && (
+        <section className="bg-white border-b border-border-light">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5">
+            <div className="flex flex-wrap gap-6">
+              {/* Region */}
+              <div>
+                <label className="block text-xs font-medium text-text-tertiary mb-2">地域</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {["すべて", ...regions].map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => setSelectedRegion(r)}
+                      className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                        selectedRegion === r
+                          ? "bg-accent text-white"
+                          : "bg-bg-secondary text-text-secondary hover:bg-bg-tertiary"
+                      }`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Price Range */}
+              <div>
+                <label className="block text-xs font-medium text-text-tertiary mb-2">価格帯</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {PRICE_RANGES.map((range, i) => (
+                    <button
+                      key={range.label}
+                      onClick={() => setSelectedPriceRange(i)}
+                      className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                        selectedPriceRange === i
+                          ? "bg-accent text-white"
+                          : "bg-bg-secondary text-text-secondary hover:bg-bg-tertiary"
+                      }`}
+                    >
+                      {range.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Availability */}
+              <div>
+                <label className="block text-xs font-medium text-text-tertiary mb-2">空き状況</label>
+                <button
+                  onClick={() => setOnlyAvailable(!onlyAvailable)}
+                  className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                    onlyAvailable
+                      ? "bg-accent text-white"
+                      : "bg-bg-secondary text-text-secondary hover:bg-bg-tertiary"
+                  }`}
+                >
+                  空きありのみ
+                </button>
+              </div>
+            </div>
+
+            {activeFilterCount > 0 && (
+              <button
+                onClick={clearFilters}
+                className="mt-3 text-sm text-accent hover:underline"
+              >
+                フィルターをクリア
+              </button>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Results */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Main results */}
@@ -222,10 +392,15 @@ export function LessonsClient({
                         alt={service.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
-                      <div className="absolute top-3 left-3">
+                      <div className="absolute top-3 left-3 flex gap-1.5">
                         <span className="bg-white/90 backdrop-blur-sm text-xs font-medium px-2.5 py-1 rounded-md text-text-primary">
                           {TYPE_LABELS[service.type] || service.type}
                         </span>
+                        {service.hasAvailability && (
+                          <span className="bg-success/90 backdrop-blur-sm text-xs font-medium px-2.5 py-1 rounded-md text-white">
+                            空きあり
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -257,6 +432,12 @@ export function LessonsClient({
                           <span className="flex items-center gap-1">
                             <MapPin size={13} />
                             {service.location}
+                          </span>
+                        )}
+                        {service.nextScheduleDate && (
+                          <span className="flex items-center gap-1">
+                            <CalendarDays size={13} />
+                            {new Date(service.nextScheduleDate).toLocaleDateString("ja-JP", { month: "short", day: "numeric" })}~
                           </span>
                         )}
                       </div>

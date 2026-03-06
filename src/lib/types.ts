@@ -46,6 +46,8 @@ export interface Booking {
   status: BookingStatus;
   amount: number;
   notes: string;
+  paymentType: string;
+  participants: number;
   createdAt: string;
 }
 

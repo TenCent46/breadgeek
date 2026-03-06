@@ -104,6 +104,8 @@ export async function getBookings(schoolId: string): Promise<Booking[]> {
     status: mapBookingStatus[b.status],
     amount: b.amount,
     notes: b.notes,
+    paymentType: b.paymentType,
+    participants: b.participants,
     createdAt: dateStr(b.createdAt),
   }));
 }

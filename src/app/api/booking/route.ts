@@ -5,6 +5,7 @@ import {
   sendBookingConfirmationEmail,
   sendBookingNotificationToTeacher,
 } from "@/lib/mail";
+import { updateCustomerTier } from "@/lib/customer-tier";
 
 export const dynamic = "force-dynamic";
 
@@ -183,6 +184,9 @@ export async function POST(request: NextRequest) {
       },
     });
   });
+
+  // Update customer tier (fire and forget)
+  updateCustomerTier(customerId).catch(() => {});
 
   // Format date for emails
   const d = schedule.date;

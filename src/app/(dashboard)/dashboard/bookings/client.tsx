@@ -13,7 +13,7 @@ import {
   FileText,
   Check,
 } from "lucide-react";
-import { updateBooking } from "@/lib/actions";
+import { updateBooking, markPaymentReceived } from "@/lib/actions";
 import { Badge } from "@/components/ui/badge";
 import { SlideOver } from "@/components/ui/modal";
 import type { Booking, BookingStatus } from "@/lib/types";
@@ -512,6 +512,10 @@ export function BookingsClient({ initialBookings }: BookingsClientProps) {
                   {formatYen(selectedBooking.amount)}
                 </span>
               </div>
+              <div className="flex items-center gap-4 mt-2 text-sm text-text-secondary">
+                <span>{selectedBooking.participants}名</span>
+                <span>{selectedBooking.paymentType === "stripe" ? "カード決済" : "当日払い"}</span>
+              </div>
             </div>
 
             <hr className="border-border-light" />
@@ -550,6 +554,25 @@ export function BookingsClient({ initialBookings }: BookingsClientProps) {
                   </button>
                 )}
               </div>
+              {/* Payment received mark for on-site bookings */}
+              {selectedBooking.paymentType === "on_site" && selectedBooking.status === "confirmed" && (
+                <div className="mt-3 pt-3 border-t border-border-light">
+                  <button
+                    onClick={async () => {
+                      await markPaymentReceived(selectedBooking.id);
+                      const updated = { ...selectedBooking, status: "completed" as BookingStatus };
+                      setSelectedBooking(updated);
+                      setBookings((prev) =>
+                        prev.map((b) => (b.id === selectedBooking.id ? { ...b, status: "completed" as BookingStatus } : b))
+                      );
+                    }}
+                    className="w-full flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+                  >
+                    <Check size={16} />
+                    受領済みにする（売上に記録）
+                  </button>
+                </div>
+              )}
             </div>
 
             <hr className="border-border-light" />

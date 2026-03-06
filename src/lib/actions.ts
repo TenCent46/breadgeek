@@ -103,6 +103,45 @@ export async function updateBooking(id: string, data: Partial<Pick<Booking, "sta
   revalidatePath("/dashboard/bookings");
 }
 
+export async function markPaymentReceived(bookingId: string) {
+  const { school } = await requireTeacher();
+
+  const booking = await prisma.booking.findFirst({
+    where: { id: bookingId, service: { schoolId: school.id } },
+    include: {
+      service: true,
+      customer: { select: { name: true } },
+    },
+  });
+  if (!booking) return;
+
+  await prisma.booking.update({
+    where: { id: bookingId },
+    data: { status: "COMPLETED" },
+  });
+
+  await prisma.saleRecord.create({
+    data: {
+      schoolId: school.id,
+      serviceId: booking.serviceId,
+      date: booking.date,
+      serviceName: booking.service.title,
+      customerName: booking.customer.name,
+      paymentMethod: "BANK_TRANSFER",
+      amount: booking.amount,
+      fee: 0,
+      netAmount: booking.amount,
+      ingredientCost: 0,
+      profit: booking.amount,
+      profitMargin: 1,
+      status: "COMPLETED",
+    },
+  });
+
+  revalidatePath("/dashboard/bookings");
+  revalidatePath("/dashboard/sales");
+}
+
 // ─── Customers ───
 
 export async function updateCustomer(id: string, data: Partial<Pick<Customer, "notes" | "tags">>) {

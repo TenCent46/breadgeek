@@ -39,6 +39,7 @@ export default async function LessonDetailPage({
       ownerName={school.owner.name || ""}
       schoolName={school.name}
       allowGuestBooking={school.allowGuestBooking}
+      stripeEnabled={school.stripeOnboarded}
     />
   );
 }

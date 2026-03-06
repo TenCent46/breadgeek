@@ -158,20 +158,23 @@ model School {
   line        String  @default("")
   tiktok             String  @default("")
   allowGuestBooking  Boolean @default(false)
+  stripeAccountId    String?
+  stripeOnboarded    Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  owner       User                  @relation(fields: [ownerId], references: [id])
-  services    Service[]
-  customers   Customer[]
-  contacts    Contact[]
-  messages    DistributionMessage[]
-  ingredients Ingredient[]
-  recipes     Recipe[]
-  sales       SaleRecord[]
-  settings    KitchenSettings?
-  templates   MessageTemplate[]
+  owner          User                  @relation(fields: [ownerId], references: [id])
+  services       Service[]
+  customers      Customer[]
+  contacts       Contact[]
+  messages       DistributionMessage[]
+  ingredients    Ingredient[]
+  recipes        Recipe[]
+  sales          SaleRecord[]
+  settings       KitchenSettings?
+  templates      MessageTemplate[]
+  schoolSettings SchoolSettings?
 }
 
 // ─── Service ───
@@ -412,6 +415,42 @@ model KitchenSettings {
   ingredientReorderLeadDays Int   @default(3)
   defaultOverheadPerLesson Int    @default(2500)
   platformFeePercent       Float  @default(3.6)
+
+  school School @relation(fields: [schoolId], references: [id])
+}
+
+// ─── School Settings (bank, legal, notifications) ───
+
+model SchoolSettings {
+  id                  String @id @default(cuid())
+  schoolId            String @unique
+
+  // Bank info
+  bankName            String @default("")
+  branchName          String @default("")
+  accountType         String @default("")
+  accountNumber       String @default("")
+  accountHolder       String @default("")
+
+  // Legal
+  legalSellerName     String @default("")
+  legalAddress        String @default("")
+  legalPhone          String @default("")
+  legalEmail          String @default("")
+  legalPrice          String @default("")
+  legalPaymentTiming  String @default("")
+  legalDeliveryTiming String @default("")
+  legalReturnPolicy   String @default("")
+  legalAdditionalFees String @default("")
+
+  // Business info
+  businessName        String @default("")
+  businessType        String @default("個人")
+  businessAddress     String @default("")
+  businessPhone       String @default("")
+
+  // Notifications
+  notifications       Json   @default("{}")
 
   school School @relation(fields: [schoolId], references: [id])
 }

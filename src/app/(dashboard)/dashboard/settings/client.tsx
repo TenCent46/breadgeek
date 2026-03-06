@@ -8,7 +8,8 @@ import { Toggle } from "@/components/ui/toggle";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import type { KitchenSettings } from "@/lib/types";
-import { updateKitchenSettings } from "@/lib/actions";
+import { updateKitchenSettings, updateSchoolSettings } from "@/lib/actions";
+import type { SchoolSettingsData } from "@/lib/actions";
 
 const tabs = [
   { id: "account", label: "アカウント", icon: User },
@@ -77,19 +78,57 @@ function buildDefaultNotifications(): NotificationSettings {
   return settings;
 }
 
-export function SettingsClient({ initialSettings }: { initialSettings: KitchenSettings }) {
+interface InitialSchoolSettings {
+  bankName: string;
+  branchName: string;
+  accountType: string;
+  accountNumber: string;
+  accountHolder: string;
+  legalSellerName: string;
+  legalAddress: string;
+  legalPhone: string;
+  legalEmail: string;
+  legalPrice: string;
+  legalPaymentTiming: string;
+  legalDeliveryTiming: string;
+  legalReturnPolicy: string;
+  legalAdditionalFees: string;
+  businessName: string;
+  businessType: string;
+  businessAddress: string;
+  businessPhone: string;
+  notifications: Record<string, Record<string, boolean>> | null;
+}
+
+interface SettingsClientProps {
+  initialSettings: KitchenSettings;
+  initialSchoolSettings: InitialSchoolSettings | null;
+  stripeOnboarded: boolean;
+  userName: string;
+  userEmail: string;
+}
+
+export function SettingsClient({
+  initialSettings,
+  initialSchoolSettings,
+  stripeOnboarded,
+  userName: initName,
+  userEmail: initEmail,
+}: SettingsClientProps) {
+  const ss = initialSchoolSettings;
   const [activeTab, setActiveTab] = useState("account");
+  const [saving, setSaving] = useState(false);
 
   // ─── Account state ───
-  const [accountName, setAccountName] = useState("");
-  const [accountEmail, setAccountEmail] = useState("");
+  const [accountName, setAccountName] = useState(initName);
+  const [accountEmail] = useState(initEmail);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
 
   // ─── Business state ───
-  const [businessName, setBusinessName] = useState("");
-  const [businessType, setBusinessType] = useState("個人");
-  const [businessAddress, setBusinessAddress] = useState("");
-  const [businessPhone, setBusinessPhone] = useState("");
+  const [businessName, setBusinessName] = useState(ss?.businessName || "");
+  const [businessType, setBusinessType] = useState(ss?.businessType || "個人");
+  const [businessAddress, setBusinessAddress] = useState(ss?.businessAddress || "");
+  const [businessPhone, setBusinessPhone] = useState(ss?.businessPhone || "");
 
   // ─── Kitchen Settings state ───
   const [maxCapacity, setMaxCapacity] = useState(initialSettings.maxCapacity);
@@ -99,29 +138,35 @@ export function SettingsClient({ initialSettings }: { initialSettings: KitchenSe
   const [platformFeePercent, setPlatformFeePercent] = useState(initialSettings.platformFeePercent);
 
   // ─── Bank state ───
-  const [bankName, setBankName] = useState("");
-  const [branchName, setBranchName] = useState("");
-  const [accountType, setAccountType] = useState<"savings" | "checking">("savings");
-  const [accountNumber, setAccountNumber] = useState("");
-  const [accountHolder, setAccountHolder] = useState("");
+  const [bankName, setBankName] = useState(ss?.bankName || "");
+  const [branchName, setBranchName] = useState(ss?.branchName || "");
+  const [accountType, setAccountType] = useState<"savings" | "checking">(
+    ss?.accountType === "checking" ? "checking" : "savings"
+  );
+  const [accountNumber, setAccountNumber] = useState(ss?.accountNumber || "");
+  const [accountHolder, setAccountHolder] = useState(ss?.accountHolder || "");
 
   // ─── Payment (Stripe) state ───
-  const [stripeConnected, setStripeConnected] = useState(false);
+  const [stripeConnecting, setStripeConnecting] = useState(false);
 
   // ─── Legal state ───
-  const [legalSellerName, setLegalSellerName] = useState("");
-  const [legalAddress, setLegalAddress] = useState("");
-  const [legalPhone, setLegalPhone] = useState("");
-  const [legalEmail, setLegalEmail] = useState("");
-  const [legalPrice, setLegalPrice] = useState("各レッスンページに記載");
-  const [legalPaymentTiming, setLegalPaymentTiming] = useState("");
-  const [legalDeliveryTiming, setLegalDeliveryTiming] = useState("");
-  const [legalCancelPolicy, setLegalCancelPolicy] = useState("");
-  const [legalNotes, setLegalNotes] = useState("");
+  const [legalSellerName, setLegalSellerName] = useState(ss?.legalSellerName || "");
+  const [legalAddress, setLegalAddress] = useState(ss?.legalAddress || "");
+  const [legalPhone, setLegalPhone] = useState(ss?.legalPhone || "");
+  const [legalEmail, setLegalEmail] = useState(ss?.legalEmail || "");
+  const [legalPrice, setLegalPrice] = useState(ss?.legalPrice || "各レッスンページに記載");
+  const [legalPaymentTiming, setLegalPaymentTiming] = useState(ss?.legalPaymentTiming || "");
+  const [legalDeliveryTiming, setLegalDeliveryTiming] = useState(ss?.legalDeliveryTiming || "");
+  const [legalCancelPolicy, setLegalCancelPolicy] = useState(ss?.legalReturnPolicy || "");
+  const [legalNotes, setLegalNotes] = useState(ss?.legalAdditionalFees || "");
   const [legalPreviewOpen, setLegalPreviewOpen] = useState(false);
 
   // ─── Notifications state ───
-  const [notifications, setNotifications] = useState<NotificationSettings>(buildDefaultNotifications);
+  const [notifications, setNotifications] = useState<NotificationSettings>(
+    ss?.notifications
+      ? (ss.notifications as unknown as NotificationSettings)
+      : buildDefaultNotifications
+  );
 
   const toggleNotification = (key: string, channel: NotificationChannel) => {
     setNotifications((prev) => ({
@@ -131,18 +176,46 @@ export function SettingsClient({ initialSettings }: { initialSettings: KitchenSe
   };
 
   const handleSaveKitchenSettings = async () => {
-    const newSettings: KitchenSettings = {
-      maxCapacity,
-      defaultLessonDuration,
-      ingredientReorderLeadDays,
-      defaultOverheadPerLesson,
-      platformFeePercent,
-    };
-    await updateKitchenSettings(newSettings);
-    alert("教室設定を保存しました");
+    setSaving(true);
+    try {
+      await updateKitchenSettings({
+        maxCapacity,
+        defaultLessonDuration,
+        ingredientReorderLeadDays,
+        defaultOverheadPerLesson,
+        platformFeePercent,
+      });
+      alert("教室設定を保存しました");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveSchoolSettings = async (partial: Partial<SchoolSettingsData>) => {
+    setSaving(true);
+    try {
+      await updateSchoolSettings(partial);
+      alert("保存しました");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleConnectStripe = async () => {
+    setStripeConnecting(true);
+    try {
+      const res = await fetch("/api/stripe/connect", { method: "POST" });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } finally {
+      setStripeConnecting(false);
+    }
   };
 
   const inputClass = "w-full border border-border rounded-lg px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10";
+  const saveBtn = "bg-primary text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-hover transition-colors disabled:opacity-50";
 
   return (
     <div className="p-8">
@@ -171,7 +244,7 @@ export function SettingsClient({ initialSettings }: { initialSettings: KitchenSe
 
         {/* Content */}
         <div className="flex-1">
-          {/* ━━━ Tab 1: アカウント ━━━ */}
+          {/* Tab 1: アカウント */}
           {activeTab === "account" && (
             <div className="bg-white rounded-xl border border-border-light p-6">
               <h2 className="text-lg font-bold text-text-primary mb-6">アカウント設定</h2>
@@ -191,17 +264,14 @@ export function SettingsClient({ initialSettings }: { initialSettings: KitchenSe
                   <input
                     type="email"
                     value={accountEmail}
-                    onChange={(e) => setAccountEmail(e.target.value)}
-                    className={inputClass}
-                    placeholder="mail@example.com"
+                    readOnly
+                    className={`${inputClass} bg-bg-secondary cursor-not-allowed`}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-text-primary mb-1.5">パスワード</label>
                   <button className="text-sm text-accent hover:underline">パスワードを変更する</button>
                 </div>
-
-                {/* 2段階認証 */}
                 <div className="pt-4 border-t border-border-light">
                   <div className="flex items-center justify-between">
                     <div>
@@ -213,155 +283,132 @@ export function SettingsClient({ initialSettings }: { initialSettings: KitchenSe
                     <Toggle checked={twoFactorEnabled} onChange={setTwoFactorEnabled} />
                   </div>
                 </div>
-
-                <button className="bg-primary text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-hover transition-colors">
-                  保存
-                </button>
               </div>
             </div>
           )}
 
-          {/* ━━━ Tab 2: 事業者情報 ━━━ */}
+          {/* Tab 2: 事業者情報 */}
           {activeTab === "business" && (
             <div className="bg-white rounded-xl border border-border-light p-6">
               <h2 className="text-lg font-bold text-text-primary mb-6">事業者情報</h2>
               <div className="space-y-5 max-w-lg">
                 <div>
                   <label className="block text-sm font-medium text-text-primary mb-1.5">教室名 / 事業者名</label>
-                  <input
-                    type="text"
-                    value={businessName}
-                    onChange={(e) => setBusinessName(e.target.value)}
-                    className={inputClass}
-                    placeholder="例: BreadGeek パン教室"
-                  />
+                  <input type="text" value={businessName} onChange={(e) => setBusinessName(e.target.value)} className={inputClass} placeholder="例: BreadGeek パン教室" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-text-primary mb-1.5">事業形態</label>
-                  <select
-                    value={businessType}
-                    onChange={(e) => setBusinessType(e.target.value)}
-                    className="w-full border border-border rounded-lg px-4 py-3 text-sm focus:border-primary focus:outline-none"
-                  >
+                  <select value={businessType} onChange={(e) => setBusinessType(e.target.value)} className="w-full border border-border rounded-lg px-4 py-3 text-sm focus:border-primary focus:outline-none">
                     <option>個人</option>
                     <option>法人</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-text-primary mb-1.5">住所</label>
-                  <input
-                    type="text"
-                    value={businessAddress}
-                    onChange={(e) => setBusinessAddress(e.target.value)}
-                    className={inputClass}
-                  />
+                  <input type="text" value={businessAddress} onChange={(e) => setBusinessAddress(e.target.value)} className={inputClass} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-text-primary mb-1.5">電話番号</label>
-                  <input
-                    type="tel"
-                    value={businessPhone}
-                    onChange={(e) => setBusinessPhone(e.target.value)}
-                    className={inputClass}
-                  />
+                  <input type="tel" value={businessPhone} onChange={(e) => setBusinessPhone(e.target.value)} className={inputClass} />
                 </div>
-                <button className="bg-primary text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-hover transition-colors">
+                <button
+                  disabled={saving}
+                  onClick={() => handleSaveSchoolSettings({ businessName, businessType, businessAddress, businessPhone })}
+                  className={saveBtn}
+                >
                   保存
                 </button>
               </div>
             </div>
           )}
 
-          {/* ━━━ Tab 3: 教室設定 (NEW) ━━━ */}
+          {/* Tab 3: 教室設定 */}
           {activeTab === "kitchen" && (
             <div className="bg-white rounded-xl border border-border-light p-6">
               <h2 className="text-lg font-bold text-text-primary mb-2">教室設定</h2>
-              <p className="text-sm text-text-secondary mb-6">
-                教室の基本設定を管理します。利益計算や在庫管理に使用されます。
-              </p>
+              <p className="text-sm text-text-secondary mb-6">教室の基本設定を管理します。利益計算や在庫管理に使用されます。</p>
               <div className="space-y-5 max-w-lg">
                 <div>
-                  <label className="block text-sm font-medium text-text-primary mb-1.5">
-                    最大収容人数
-                  </label>
-                  <input
-                    type="number"
-                    value={maxCapacity}
-                    onChange={(e) => setMaxCapacity(Math.max(1, parseInt(e.target.value) || 1))}
-                    min={1}
-                    className={inputClass}
-                  />
+                  <label className="block text-sm font-medium text-text-primary mb-1.5">最大収容人数</label>
+                  <input type="number" value={maxCapacity} onChange={(e) => setMaxCapacity(Math.max(1, parseInt(e.target.value) || 1))} min={1} className={inputClass} />
                   <p className="text-xs text-text-tertiary mt-1">教室の物理的な最大収容人数</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-text-primary mb-1.5">
-                    デフォルトレッスン時間（分）
-                  </label>
-                  <input
-                    type="number"
-                    value={defaultLessonDuration}
-                    onChange={(e) => setDefaultLessonDuration(Math.max(30, parseInt(e.target.value) || 30))}
-                    min={30}
-                    step={15}
-                    className={inputClass}
-                  />
+                  <label className="block text-sm font-medium text-text-primary mb-1.5">デフォルトレッスン時間（分）</label>
+                  <input type="number" value={defaultLessonDuration} onChange={(e) => setDefaultLessonDuration(Math.max(30, parseInt(e.target.value) || 30))} min={30} step={15} className={inputClass} />
                   <p className="text-xs text-text-tertiary mt-1">新規レッスン作成時のデフォルト値</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-text-primary mb-1.5">
-                    材料発注リードタイム（日）
-                  </label>
-                  <input
-                    type="number"
-                    value={ingredientReorderLeadDays}
-                    onChange={(e) => setIngredientReorderLeadDays(Math.max(1, parseInt(e.target.value) || 1))}
-                    min={1}
-                    className={inputClass}
-                  />
+                  <label className="block text-sm font-medium text-text-primary mb-1.5">材料発注リードタイム（日）</label>
+                  <input type="number" value={ingredientReorderLeadDays} onChange={(e) => setIngredientReorderLeadDays(Math.max(1, parseInt(e.target.value) || 1))} min={1} className={inputClass} />
                   <p className="text-xs text-text-tertiary mt-1">在庫がしきい値を下回った際の発注猶予日数</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-text-primary mb-1.5">
-                    デフォルト諸経費（1レッスンあたり）
-                  </label>
+                  <label className="block text-sm font-medium text-text-primary mb-1.5">デフォルト諸経費（1レッスンあたり）</label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-text-secondary">
-                      ¥
-                    </span>
-                    <input
-                      type="number"
-                      value={defaultOverheadPerLesson}
-                      onChange={(e) => setDefaultOverheadPerLesson(Math.max(0, parseInt(e.target.value) || 0))}
-                      min={0}
-                      className="w-full border border-border rounded-lg pl-8 pr-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10"
-                    />
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-text-secondary">¥</span>
+                    <input type="number" value={defaultOverheadPerLesson} onChange={(e) => setDefaultOverheadPerLesson(Math.max(0, parseInt(e.target.value) || 0))} min={0} className="w-full border border-border rounded-lg pl-8 pr-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10" />
                   </div>
                   <p className="text-xs text-text-tertiary mt-1">光熱費・消耗品など、1レッスンあたりの固定経費</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-text-primary mb-1.5">
-                    プラットフォーム手数料（%）
-                  </label>
+                  <label className="block text-sm font-medium text-text-primary mb-1.5">プラットフォーム手数料（%）</label>
                   <div className="relative">
-                    <input
-                      type="number"
-                      value={platformFeePercent}
-                      onChange={(e) => setPlatformFeePercent(Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)))}
-                      min={0}
-                      max={100}
-                      step={0.1}
-                      className="w-full border border-border rounded-lg px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 pr-8"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-text-secondary">
-                      %
-                    </span>
+                    <input type="number" value={platformFeePercent} onChange={(e) => setPlatformFeePercent(Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)))} min={0} max={100} step={0.1} className="w-full border border-border rounded-lg px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 pr-8" />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-text-secondary">%</span>
                   </div>
                   <p className="text-xs text-text-tertiary mt-1">決済手数料の割合</p>
                 </div>
+                <button disabled={saving} onClick={handleSaveKitchenSettings} className={saveBtn}>
+                  保存する
+                </button>
+              </div>
+            </div>
+          )}
 
+          {/* Tab 4: 口座情報 */}
+          {activeTab === "bank" && (
+            <div className="bg-white rounded-xl border border-border-light p-6">
+              <h2 className="text-lg font-bold text-text-primary mb-6">口座情報</h2>
+              <div className="space-y-5 max-w-lg">
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-1.5">銀行名</label>
+                  <input type="text" value={bankName} onChange={(e) => setBankName(e.target.value)} className={inputClass} placeholder="例: 三菱UFJ銀行" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-1.5">支店名</label>
+                  <input type="text" value={branchName} onChange={(e) => setBranchName(e.target.value)} className={inputClass} placeholder="例: 渋谷支店" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-1.5">口座種別</label>
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="radio" name="accountType" checked={accountType === "savings"} onChange={() => setAccountType("savings")} className="w-4 h-4 text-primary focus:ring-primary" />
+                      <span className="text-sm text-text-primary">普通</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="radio" name="accountType" checked={accountType === "checking"} onChange={() => setAccountType("checking")} className="w-4 h-4 text-primary focus:ring-primary" />
+                      <span className="text-sm text-text-primary">当座</span>
+                    </label>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-1.5">口座番号</label>
+                  <input type="text" inputMode="numeric" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ""))} className={inputClass} placeholder="1234567" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-1.5">口座名義</label>
+                  <input type="text" value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)} className={inputClass} placeholder="カタカナで入力" />
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-text-primary">認証ステータス:</span>
+                  <Badge status={bankName && accountNumber ? "active" : "pending"} />
+                  <span className="text-xs text-text-tertiary">{bankName && accountNumber ? "認証済み" : "未認証"}</span>
+                </div>
                 <button
-                  onClick={handleSaveKitchenSettings}
-                  className="bg-primary text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-hover transition-colors"
+                  disabled={saving}
+                  onClick={() => handleSaveSchoolSettings({ bankName, branchName, accountType, accountNumber, accountHolder })}
+                  className={saveBtn}
                 >
                   保存する
                 </button>
@@ -369,95 +416,7 @@ export function SettingsClient({ initialSettings }: { initialSettings: KitchenSe
             </div>
           )}
 
-          {/* ━━━ Tab 4: 口座情報 ━━━ */}
-          {activeTab === "bank" && (
-            <div className="bg-white rounded-xl border border-border-light p-6">
-              <h2 className="text-lg font-bold text-text-primary mb-6">口座情報</h2>
-              <div className="space-y-5 max-w-lg">
-                <div>
-                  <label className="block text-sm font-medium text-text-primary mb-1.5">銀行名</label>
-                  <input
-                    type="text"
-                    value={bankName}
-                    onChange={(e) => setBankName(e.target.value)}
-                    className={inputClass}
-                    placeholder="例: 三菱UFJ銀行"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-text-primary mb-1.5">支店名</label>
-                  <input
-                    type="text"
-                    value={branchName}
-                    onChange={(e) => setBranchName(e.target.value)}
-                    className={inputClass}
-                    placeholder="例: 渋谷支店"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-text-primary mb-1.5">口座種別</label>
-                  <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="accountType"
-                        checked={accountType === "savings"}
-                        onChange={() => setAccountType("savings")}
-                        className="w-4 h-4 text-primary focus:ring-primary"
-                      />
-                      <span className="text-sm text-text-primary">普通</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="accountType"
-                        checked={accountType === "checking"}
-                        onChange={() => setAccountType("checking")}
-                        className="w-4 h-4 text-primary focus:ring-primary"
-                      />
-                      <span className="text-sm text-text-primary">当座</span>
-                    </label>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-text-primary mb-1.5">口座番号</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={accountNumber}
-                    onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ""))}
-                    className={inputClass}
-                    placeholder="1234567"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-text-primary mb-1.5">口座名義</label>
-                  <input
-                    type="text"
-                    value={accountHolder}
-                    onChange={(e) => setAccountHolder(e.target.value)}
-                    className={inputClass}
-                    placeholder="カタカナで入力"
-                  />
-                </div>
-
-                {/* 認証ステータス */}
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-text-primary">認証ステータス:</span>
-                  <Badge status={bankName && accountNumber ? "active" : "pending"} />
-                  <span className="text-xs text-text-tertiary">
-                    {bankName && accountNumber ? "認証済み" : "未認証"}
-                  </span>
-                </div>
-
-                <button className="bg-primary text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-hover transition-colors">
-                  保存する
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ━━━ Tab 5: 決済設定 ━━━ */}
+          {/* Tab 5: 決済設定 */}
           {activeTab === "payment" && (
             <div className="bg-white rounded-xl border border-border-light p-6">
               <h2 className="text-lg font-bold text-text-primary mb-6">決済設定</h2>
@@ -469,16 +428,26 @@ export function SettingsClient({ initialSettings }: { initialSettings: KitchenSe
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="text-sm font-bold text-text-primary">Stripe</h3>
-                      <Badge status={stripeConnected ? "active" : "draft"} />
+                      <Badge status={stripeOnboarded ? "active" : "draft"} />
                     </div>
                     <p className="text-xs text-text-secondary leading-relaxed mb-4">
                       決済サービス連携。クレジットカード・銀行振込を受け付けます。生徒からのレッスン料の受け取りに使用されます。
                     </p>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-text-secondary">
-                        {stripeConnected ? "接続済み" : "未接続"}
+                        {stripeOnboarded ? "接続済み" : "未接続"}
                       </span>
-                      <Toggle checked={stripeConnected} onChange={setStripeConnected} />
+                      {stripeOnboarded ? (
+                        <span className="text-sm font-medium text-green-600">有効</span>
+                      ) : (
+                        <button
+                          onClick={handleConnectStripe}
+                          disabled={stripeConnecting}
+                          className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors disabled:opacity-50"
+                        >
+                          {stripeConnecting ? "接続中..." : "Stripeを接続する"}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -486,98 +455,58 @@ export function SettingsClient({ initialSettings }: { initialSettings: KitchenSe
             </div>
           )}
 
-          {/* ━━━ Tab 6: 特定商取引法 ━━━ */}
+          {/* Tab 6: 特定商取引法 */}
           {activeTab === "legal" && (
             <div className="bg-white rounded-xl border border-border-light p-6">
               <h2 className="text-lg font-bold text-text-primary mb-6">特定商取引法に基づく表記</h2>
               <div className="space-y-5 max-w-lg">
                 <div>
                   <label className="block text-sm font-medium text-text-primary mb-1.5">販売事業者名</label>
-                  <input
-                    type="text"
-                    value={legalSellerName}
-                    onChange={(e) => setLegalSellerName(e.target.value)}
-                    className={inputClass}
-                  />
+                  <input type="text" value={legalSellerName} onChange={(e) => setLegalSellerName(e.target.value)} className={inputClass} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-text-primary mb-1.5">所在地</label>
-                  <textarea
-                    value={legalAddress}
-                    onChange={(e) => setLegalAddress(e.target.value)}
-                    rows={2}
-                    className={`${inputClass} resize-none`}
-                  />
+                  <textarea value={legalAddress} onChange={(e) => setLegalAddress(e.target.value)} rows={2} className={`${inputClass} resize-none`} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-text-primary mb-1.5">電話番号</label>
-                  <input
-                    type="tel"
-                    value={legalPhone}
-                    onChange={(e) => setLegalPhone(e.target.value)}
-                    className={inputClass}
-                  />
+                  <input type="tel" value={legalPhone} onChange={(e) => setLegalPhone(e.target.value)} className={inputClass} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-text-primary mb-1.5">メールアドレス</label>
-                  <input
-                    type="email"
-                    value={legalEmail}
-                    onChange={(e) => setLegalEmail(e.target.value)}
-                    className={inputClass}
-                  />
+                  <input type="email" value={legalEmail} onChange={(e) => setLegalEmail(e.target.value)} className={inputClass} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-text-primary mb-1.5">販売価格</label>
-                  <textarea
-                    value={legalPrice}
-                    onChange={(e) => setLegalPrice(e.target.value)}
-                    rows={2}
-                    className={`${inputClass} resize-none`}
-                  />
+                  <textarea value={legalPrice} onChange={(e) => setLegalPrice(e.target.value)} rows={2} className={`${inputClass} resize-none`} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-text-primary mb-1.5">支払い時期</label>
-                  <input
-                    type="text"
-                    value={legalPaymentTiming}
-                    onChange={(e) => setLegalPaymentTiming(e.target.value)}
-                    className={inputClass}
-                    placeholder="例: レッスン申込時"
-                  />
+                  <input type="text" value={legalPaymentTiming} onChange={(e) => setLegalPaymentTiming(e.target.value)} className={inputClass} placeholder="例: レッスン申込時" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-text-primary mb-1.5">引き渡し時期</label>
-                  <input
-                    type="text"
-                    value={legalDeliveryTiming}
-                    onChange={(e) => setLegalDeliveryTiming(e.target.value)}
-                    className={inputClass}
-                    placeholder="例: レッスン当日"
-                  />
+                  <input type="text" value={legalDeliveryTiming} onChange={(e) => setLegalDeliveryTiming(e.target.value)} className={inputClass} placeholder="例: レッスン当日" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-text-primary mb-1.5">返品・キャンセルポリシー</label>
-                  <textarea
-                    value={legalCancelPolicy}
-                    onChange={(e) => setLegalCancelPolicy(e.target.value)}
-                    rows={4}
-                    className={`${inputClass} resize-none`}
-                    placeholder="返品・キャンセルに関するポリシーを記載してください"
-                  />
+                  <textarea value={legalCancelPolicy} onChange={(e) => setLegalCancelPolicy(e.target.value)} rows={4} className={`${inputClass} resize-none`} placeholder="返品・キャンセルに関するポリシーを記載してください" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-text-primary mb-1.5">特記事項</label>
-                  <textarea
-                    value={legalNotes}
-                    onChange={(e) => setLegalNotes(e.target.value)}
-                    rows={3}
-                    className={`${inputClass} resize-none`}
-                  />
+                  <textarea value={legalNotes} onChange={(e) => setLegalNotes(e.target.value)} rows={3} className={`${inputClass} resize-none`} />
                 </div>
-
                 <div className="flex items-center gap-3">
-                  <button className="bg-primary text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-hover transition-colors">
+                  <button
+                    disabled={saving}
+                    onClick={() => handleSaveSchoolSettings({
+                      legalSellerName, legalAddress, legalPhone, legalEmail, legalPrice,
+                      legalPaymentTiming, legalDeliveryTiming,
+                      legalReturnPolicy: legalCancelPolicy,
+                      legalAdditionalFees: legalNotes,
+                    })}
+                    className={saveBtn}
+                  >
                     保存する
                   </button>
                   <button
@@ -589,41 +518,23 @@ export function SettingsClient({ initialSettings }: { initialSettings: KitchenSe
                 </div>
               </div>
 
-              {/* Legal Preview Modal */}
               <Modal open={legalPreviewOpen} onClose={() => setLegalPreviewOpen(false)} title="特定商取引法に基づく表記 - プレビュー" size="lg">
                 <div className="space-y-4 text-sm">
-                  <div>
-                    <p className="font-medium text-text-primary mb-1">販売事業者名</p>
-                    <p className="text-text-secondary">{legalSellerName || "-"}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium text-text-primary mb-1">所在地</p>
-                    <p className="text-text-secondary whitespace-pre-wrap">{legalAddress || "-"}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium text-text-primary mb-1">電話番号</p>
-                    <p className="text-text-secondary">{legalPhone || "-"}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium text-text-primary mb-1">メールアドレス</p>
-                    <p className="text-text-secondary">{legalEmail || "-"}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium text-text-primary mb-1">販売価格</p>
-                    <p className="text-text-secondary whitespace-pre-wrap">{legalPrice || "-"}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium text-text-primary mb-1">支払い時期</p>
-                    <p className="text-text-secondary">{legalPaymentTiming || "-"}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium text-text-primary mb-1">引き渡し時期</p>
-                    <p className="text-text-secondary">{legalDeliveryTiming || "-"}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium text-text-primary mb-1">返品・キャンセルポリシー</p>
-                    <p className="text-text-secondary whitespace-pre-wrap">{legalCancelPolicy || "-"}</p>
-                  </div>
+                  {[
+                    ["販売事業者名", legalSellerName],
+                    ["所在地", legalAddress],
+                    ["電話番号", legalPhone],
+                    ["メールアドレス", legalEmail],
+                    ["販売価格", legalPrice],
+                    ["支払い時期", legalPaymentTiming],
+                    ["引き渡し時期", legalDeliveryTiming],
+                    ["返品・キャンセルポリシー", legalCancelPolicy],
+                  ].map(([label, value]) => (
+                    <div key={label}>
+                      <p className="font-medium text-text-primary mb-1">{label}</p>
+                      <p className="text-text-secondary whitespace-pre-wrap">{value || "-"}</p>
+                    </div>
+                  ))}
                   {legalNotes && (
                     <div>
                       <p className="font-medium text-text-primary mb-1">特記事項</p>
@@ -635,7 +546,7 @@ export function SettingsClient({ initialSettings }: { initialSettings: KitchenSe
             </div>
           )}
 
-          {/* ━━━ Tab 7: 通知設定 ━━━ */}
+          {/* Tab 7: 通知設定 */}
           {activeTab === "notifications" && (
             <div className="bg-white rounded-xl border border-border-light p-6">
               <h2 className="text-lg font-bold text-text-primary mb-6">通知設定</h2>
@@ -644,18 +555,10 @@ export function SettingsClient({ initialSettings }: { initialSettings: KitchenSe
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border-light">
-                      <th className="text-left py-3 pr-6 text-xs font-medium text-text-tertiary uppercase tracking-wider">
-                        通知項目
-                      </th>
-                      <th className="text-center py-3 px-4 text-xs font-medium text-text-tertiary uppercase tracking-wider w-20">
-                        Email
-                      </th>
-                      <th className="text-center py-3 px-4 text-xs font-medium text-text-tertiary uppercase tracking-wider w-20">
-                        プッシュ
-                      </th>
-                      <th className="text-center py-3 px-4 text-xs font-medium text-text-tertiary uppercase tracking-wider w-20">
-                        LINE
-                      </th>
+                      <th className="text-left py-3 pr-6 text-xs font-medium text-text-tertiary uppercase tracking-wider">通知項目</th>
+                      <th className="text-center py-3 px-4 text-xs font-medium text-text-tertiary uppercase tracking-wider w-20">Email</th>
+                      <th className="text-center py-3 px-4 text-xs font-medium text-text-tertiary uppercase tracking-wider w-20">プッシュ</th>
+                      <th className="text-center py-3 px-4 text-xs font-medium text-text-tertiary uppercase tracking-wider w-20">LINE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -673,26 +576,17 @@ export function SettingsClient({ initialSettings }: { initialSettings: KitchenSe
                             </td>
                             <td className="py-3 px-4 text-center">
                               <div className="flex justify-center">
-                                <Toggle
-                                  checked={notifications[item.key]?.email ?? false}
-                                  onChange={() => toggleNotification(item.key, "email")}
-                                />
+                                <Toggle checked={notifications[item.key]?.email ?? false} onChange={() => toggleNotification(item.key, "email")} />
                               </div>
                             </td>
                             <td className="py-3 px-4 text-center">
                               <div className="flex justify-center">
-                                <Toggle
-                                  checked={notifications[item.key]?.push ?? false}
-                                  onChange={() => toggleNotification(item.key, "push")}
-                                />
+                                <Toggle checked={notifications[item.key]?.push ?? false} onChange={() => toggleNotification(item.key, "push")} />
                               </div>
                             </td>
                             <td className="py-3 px-4 text-center">
                               <div className="flex justify-center">
-                                <Toggle
-                                  checked={notifications[item.key]?.line ?? false}
-                                  onChange={() => toggleNotification(item.key, "line")}
-                                />
+                                <Toggle checked={notifications[item.key]?.line ?? false} onChange={() => toggleNotification(item.key, "line")} />
                               </div>
                             </td>
                           </tr>
@@ -704,7 +598,11 @@ export function SettingsClient({ initialSettings }: { initialSettings: KitchenSe
               </div>
 
               <div className="mt-6">
-                <button className="bg-primary text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-hover transition-colors">
+                <button
+                  disabled={saving}
+                  onClick={() => handleSaveSchoolSettings({ notifications })}
+                  className={saveBtn}
+                >
                   すべて保存
                 </button>
               </div>

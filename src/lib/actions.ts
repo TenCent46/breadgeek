@@ -420,6 +420,51 @@ export async function updateKitchenSettings(data: KitchenSettings) {
   revalidatePath("/dashboard/settings");
 }
 
+// ─── School Settings (bank, legal, business, notifications) ───
+
+export interface SchoolSettingsData {
+  bankName?: string;
+  branchName?: string;
+  accountType?: string;
+  accountNumber?: string;
+  accountHolder?: string;
+  legalSellerName?: string;
+  legalAddress?: string;
+  legalPhone?: string;
+  legalEmail?: string;
+  legalPrice?: string;
+  legalPaymentTiming?: string;
+  legalDeliveryTiming?: string;
+  legalReturnPolicy?: string;
+  legalAdditionalFees?: string;
+  businessName?: string;
+  businessType?: string;
+  businessAddress?: string;
+  businessPhone?: string;
+  notifications?: Record<string, Record<string, boolean>>;
+}
+
+export async function updateSchoolSettings(data: SchoolSettingsData) {
+  const { school } = await requireTeacher();
+
+  const { notifications, ...rest } = data;
+
+  await prisma.schoolSettings.upsert({
+    where: { schoolId: school.id },
+    update: {
+      ...rest,
+      ...(notifications !== undefined ? { notifications } : {}),
+    },
+    create: {
+      schoolId: school.id,
+      ...rest,
+      ...(notifications !== undefined ? { notifications } : {}),
+    },
+  });
+
+  revalidatePath("/dashboard/settings");
+}
+
 // ─── Slug Check ───
 
 export async function checkSlugAvailability(slug: string): Promise<boolean> {

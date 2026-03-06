@@ -18,6 +18,7 @@ import {
   Plus,
   CheckCircle,
   Loader2,
+  CreditCard,
 } from "lucide-react";
 
 const LESSON_IMAGES = [
@@ -45,6 +46,7 @@ interface LessonDetailClientProps {
   ownerName: string;
   schoolName: string;
   allowGuestBooking: boolean;
+  stripeEnabled: boolean;
 }
 
 export function LessonDetailClient({
@@ -55,6 +57,7 @@ export function LessonDetailClient({
   ownerName,
   schoolName,
   allowGuestBooking,
+  stripeEnabled,
 }: LessonDetailClientProps) {
   const router = useRouter();
   const { data: session, status: authStatus } = useSession();
@@ -63,6 +66,7 @@ export function LessonDetailClient({
   const [participants, setParticipants] = useState(1);
   const [booking, setBooking] = useState(false);
   const [error, setError] = useState("");
+  const [paymentType, setPaymentType] = useState<"on_site" | "stripe">("on_site");
 
   // Guest form fields
   const [guestName, setGuestName] = useState("");
@@ -134,6 +138,7 @@ export function LessonDetailClient({
         serviceId: service.id,
         scheduleId: selectedSchedule.id,
         participants,
+        paymentType: stripeEnabled ? paymentType : "on_site",
       };
 
       if (!session?.user) {
@@ -159,6 +164,21 @@ export function LessonDetailClient({
           setError(data.error || "予約に失敗しました。もう一度お試しください。");
         }
         return;
+      }
+
+      // If Stripe pre-payment, redirect to checkout
+      if (paymentType === "stripe") {
+        const checkoutRes = await fetch("/api/stripe/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bookingId: data.bookingId }),
+        });
+        const checkoutData = await checkoutRes.json();
+        if (checkoutRes.ok && checkoutData.url) {
+          window.location.href = checkoutData.url;
+          return;
+        }
+        // If checkout creation fails, still show completion (on_site fallback)
       }
 
       router.push(`/p/${slug}/complete?bookingId=${data.bookingId}`);
@@ -445,6 +465,40 @@ export function LessonDetailClient({
                     onChange={(e) => setGuestPhone(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg border border-border-light text-sm focus:outline-none focus:ring-1 focus:ring-accent"
                   />
+                </div>
+              )}
+
+              {/* Payment Type Selection */}
+              {stripeEnabled && (
+                <div className="space-y-2 border-t border-border-light pt-4">
+                  <label className="text-sm font-medium text-text-primary flex items-center gap-1.5">
+                    <CreditCard className="w-4 h-4 text-text-tertiary" />
+                    お支払い方法
+                  </label>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => setPaymentType("stripe")}
+                      className={`w-full text-left rounded-lg border p-3 transition-colors text-sm ${
+                        paymentType === "stripe"
+                          ? "border-accent bg-accent/5 ring-1 ring-accent"
+                          : "border-border-light hover:border-accent/50"
+                      }`}
+                    >
+                      <span className="font-medium">カード決済（事前払い）</span>
+                      <p className="text-xs text-text-tertiary mt-0.5">クレジットカードで今すぐお支払い</p>
+                    </button>
+                    <button
+                      onClick={() => setPaymentType("on_site")}
+                      className={`w-full text-left rounded-lg border p-3 transition-colors text-sm ${
+                        paymentType === "on_site"
+                          ? "border-accent bg-accent/5 ring-1 ring-accent"
+                          : "border-border-light hover:border-accent/50"
+                      }`}
+                    >
+                      <span className="font-medium">当日払い</span>
+                      <p className="text-xs text-text-tertiary mt-0.5">レッスン当日に現地でお支払い</p>
+                    </button>
+                  </div>
                 </div>
               )}
 

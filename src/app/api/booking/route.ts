@@ -12,6 +12,7 @@ interface BookingRequest {
   serviceId: string;
   scheduleId: string;
   participants: number;
+  paymentType?: "on_site" | "stripe";
   // Guest fields (optional if logged in)
   guestName?: string;
   guestEmail?: string;
@@ -20,7 +21,8 @@ interface BookingRequest {
 
 export async function POST(request: NextRequest) {
   const body = (await request.json()) as BookingRequest;
-  const { serviceId, scheduleId, participants, guestName, guestEmail, guestPhone } = body;
+  const { serviceId, scheduleId, participants, paymentType: reqPaymentType, guestName, guestEmail, guestPhone } = body;
+  const paymentType = reqPaymentType || "on_site";
 
   if (!serviceId || !scheduleId || !participants || participants < 1) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
@@ -165,18 +167,18 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create booking
+    // Create booking (Stripe = PENDING until payment, on_site = CONFIRMED immediately)
     return tx.booking.create({
       data: {
         serviceId,
         customerId,
         scheduleId,
         participants,
-        paymentType: "on_site",
+        paymentType,
         date: freshSchedule.date,
         startTime: freshSchedule.startTime,
         endTime: freshSchedule.endTime,
-        status: "CONFIRMED",
+        status: paymentType === "stripe" ? "PENDING" : "CONFIRMED",
         amount,
       },
     });
@@ -199,8 +201,31 @@ export async function POST(request: NextRequest) {
     amount,
     schoolName: service.school.name,
     schoolSlug: service.school.slug,
-    paymentType: "on_site",
+    paymentType,
   };
+
+  // For on_site bookings, create a pending SaleRecord
+  if (paymentType === "on_site") {
+    const fee = 0; // no platform fee for on-site
+    prisma.saleRecord.create({
+      data: {
+        schoolId: service.schoolId,
+        serviceId,
+        date: schedule.date,
+        serviceName: service.title,
+        customerName,
+        paymentMethod: "BANK_TRANSFER", // closest to cash/on-site
+        amount,
+        fee,
+        netAmount: amount,
+        ingredientCost: 0,
+        profit: amount,
+        profitMargin: 1,
+        status: "PENDING",
+      },
+    }).catch(() => {}); // fire and forget
+
+  }
 
   Promise.allSettled([
     sendBookingConfirmationEmail(customerEmail, emailData),

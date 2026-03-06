@@ -169,6 +169,126 @@ export async function sendBookingNotificationToTeacher(
   });
 }
 
+export async function sendBookingCancellationEmail(
+  to: string,
+  data: {
+    customerName: string;
+    lessonTitle: string;
+    date: string;
+    time: string;
+    schoolName: string;
+  }
+) {
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `【${data.schoolName}】予約キャンセルのお知らせ`,
+    html: `
+      <div style="max-width:480px;margin:0 auto;font-family:'Helvetica Neue',Arial,sans-serif;color:#1a1a1a">
+        <div style="text-align:center;padding:32px 0 24px">
+          <h1 style="font-size:20px;font-weight:700;margin:0">${data.schoolName}</h1>
+        </div>
+        <div style="background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:32px">
+          <h2 style="font-size:18px;font-weight:600;margin:0 0 16px">予約キャンセルのお知らせ</h2>
+          <p style="font-size:14px;line-height:1.6;color:#555;margin:0 0 20px">
+            ${data.customerName}様、以下の予約がキャンセルされました。
+          </p>
+          <div style="background:#faf8f5;border-radius:8px;padding:20px;margin:0 0 20px">
+            <table style="width:100%;font-size:14px;border-collapse:collapse">
+              <tr><td style="padding:6px 0;color:#888;width:100px">レッスン</td><td style="padding:6px 0">${data.lessonTitle}</td></tr>
+              <tr><td style="padding:6px 0;color:#888">日時</td><td style="padding:6px 0">${data.date} ${data.time}</td></tr>
+            </table>
+          </div>
+          <p style="font-size:13px;color:#888;margin:0">またのご予約をお待ちしております。</p>
+        </div>
+        <div style="text-align:center;padding:24px 0;font-size:11px;color:#999">Powered by BreadGeek</div>
+      </div>
+    `,
+  });
+}
+
+export async function sendBookingReminderEmail(
+  to: string,
+  data: {
+    customerName: string;
+    lessonTitle: string;
+    date: string;
+    time: string;
+    schoolName: string;
+    schoolSlug: string;
+    location: string;
+  }
+) {
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `【明日のレッスン】${data.lessonTitle} - ${data.schoolName}`,
+    html: `
+      <div style="max-width:480px;margin:0 auto;font-family:'Helvetica Neue',Arial,sans-serif;color:#1a1a1a">
+        <div style="text-align:center;padding:32px 0 24px">
+          <h1 style="font-size:20px;font-weight:700;margin:0">${data.schoolName}</h1>
+        </div>
+        <div style="background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:32px">
+          <h2 style="font-size:18px;font-weight:600;margin:0 0 16px">明日のレッスンのお知らせ</h2>
+          <p style="font-size:14px;line-height:1.6;color:#555;margin:0 0 20px">
+            ${data.customerName}様、明日のレッスンのリマインダーです。
+          </p>
+          <div style="background:#faf8f5;border-radius:8px;padding:20px;margin:0 0 20px">
+            <table style="width:100%;font-size:14px;border-collapse:collapse">
+              <tr><td style="padding:6px 0;color:#888;width:100px">レッスン</td><td style="padding:6px 0;font-weight:600">${data.lessonTitle}</td></tr>
+              <tr><td style="padding:6px 0;color:#888">日時</td><td style="padding:6px 0">${data.date} ${data.time}</td></tr>
+              ${data.location ? `<tr><td style="padding:6px 0;color:#888">場所</td><td style="padding:6px 0">${data.location}</td></tr>` : ""}
+            </table>
+          </div>
+          <p style="font-size:13px;color:#555;margin:0 0 16px">持ち物をお忘れなくお越しください。お会いできることを楽しみにしています！</p>
+          <div style="text-align:center">
+            <a href="${BASE_URL}/p/${data.schoolSlug}" style="display:inline-block;background:#D4943A;color:#fff;font-size:14px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:8px">
+              教室ページを見る
+            </a>
+          </div>
+        </div>
+        <div style="text-align:center;padding:24px 0;font-size:11px;color:#999">Powered by BreadGeek</div>
+      </div>
+    `,
+  });
+}
+
+export async function sendReviewRequestEmail(
+  to: string,
+  data: {
+    customerName: string;
+    lessonTitle: string;
+    schoolName: string;
+    reviewUrl: string;
+  }
+) {
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `【${data.schoolName}】レッスンはいかがでしたか？`,
+    html: `
+      <div style="max-width:480px;margin:0 auto;font-family:'Helvetica Neue',Arial,sans-serif;color:#1a1a1a">
+        <div style="text-align:center;padding:32px 0 24px">
+          <h1 style="font-size:20px;font-weight:700;margin:0">${data.schoolName}</h1>
+        </div>
+        <div style="background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:32px">
+          <h2 style="font-size:18px;font-weight:600;margin:0 0 16px">レッスンはいかがでしたか？</h2>
+          <p style="font-size:14px;line-height:1.6;color:#555;margin:0 0 20px">
+            ${data.customerName}様、「${data.lessonTitle}」にご参加いただきありがとうございました。<br>
+            ぜひレビューをお寄せください。今後のレッスン改善に活かさせていただきます。
+          </p>
+          <div style="text-align:center;margin:0 0 16px">
+            <a href="${data.reviewUrl}" style="display:inline-block;background:#D4943A;color:#fff;font-size:14px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:8px">
+              レビューを書く
+            </a>
+          </div>
+        </div>
+        <div style="text-align:center;padding:24px 0;font-size:11px;color:#999">Powered by BreadGeek</div>
+      </div>
+    `,
+  });
+}
+
 export async function sendPasswordResetEmail(email: string, token: string) {
   const resetUrl = `${BASE_URL}/auth/reset-password?token=${token}`;
 

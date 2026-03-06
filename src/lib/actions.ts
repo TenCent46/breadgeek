@@ -504,6 +504,60 @@ export async function updateSchoolSettings(data: SchoolSettingsData) {
   revalidatePath("/dashboard/settings");
 }
 
+// ─── Message Templates ───
+
+interface MessageTemplateData {
+  type: string;
+  name: string;
+  subject: string;
+  content: string;
+  channel: "email" | "line";
+}
+
+export async function addMessageTemplate(data: MessageTemplateData) {
+  const { school } = await requireTeacher();
+
+  await prisma.messageTemplate.create({
+    data: {
+      schoolId: school.id,
+      type: data.type,
+      name: data.name,
+      subject: data.subject,
+      content: data.content,
+      channel: data.channel === "email" ? "EMAIL" : "LINE",
+    },
+  });
+
+  revalidatePath("/dashboard/customers/messages");
+}
+
+export async function updateMessageTemplate(id: string, data: Partial<MessageTemplateData>) {
+  const { school } = await requireTeacher();
+
+  await prisma.messageTemplate.update({
+    where: { id, schoolId: school.id },
+    data: {
+      ...(data.type !== undefined && { type: data.type }),
+      ...(data.name !== undefined && { name: data.name }),
+      ...(data.subject !== undefined && { subject: data.subject }),
+      ...(data.content !== undefined && { content: data.content }),
+      ...(data.channel && { channel: data.channel === "email" ? "EMAIL" as const : "LINE" as const }),
+    },
+  });
+
+  revalidatePath("/dashboard/customers/messages");
+}
+
+export async function deleteMessageTemplate(id: string) {
+  const { school } = await requireTeacher();
+
+  await prisma.messageTemplate.delete({
+    where: { id, schoolId: school.id },
+  });
+
+  revalidatePath("/dashboard/customers/messages");
+}
+
 // ─── Slug Check ───
 
 export async function checkSlugAvailability(slug: string): Promise<boolean> {

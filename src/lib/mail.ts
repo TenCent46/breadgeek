@@ -5,6 +5,16 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = "BreadGeek <info@bakerization.com>";
 const BASE_URL = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
+/** Escape HTML special characters to prevent XSS in emails */
+function esc(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 export async function sendVerificationEmail(email: string, token: string) {
   const verifyUrl = `${BASE_URL}/auth/verify?token=${token}`;
 
@@ -60,7 +70,7 @@ export async function sendDistributionEmail(
     html: `
       <div style="max-width:560px;margin:0 auto;font-family:'Helvetica Neue',Arial,sans-serif;color:#1a1a1a">
         <div style="text-align:center;padding:32px 0 24px">
-          <h1 style="font-size:20px;font-weight:700;margin:0">${schoolName}</h1>
+          <h1 style="font-size:20px;font-weight:700;margin:0">${esc(schoolName)}</h1>
         </div>
         <div style="background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:32px">
           <div style="font-size:14px;line-height:1.8;color:#333">
@@ -68,7 +78,7 @@ export async function sendDistributionEmail(
           </div>
         </div>
         <div style="text-align:center;padding:24px 0;font-size:11px;color:#999">
-          このメールは ${schoolName} からお送りしています。<br>
+          このメールは ${esc(schoolName)} からお送りしています。<br>
           Powered by BreadGeek
         </div>
       </div>
@@ -100,17 +110,17 @@ export async function sendBookingConfirmationEmail(
     html: `
       <div style="max-width:480px;margin:0 auto;font-family:'Helvetica Neue',Arial,sans-serif;color:#1a1a1a">
         <div style="text-align:center;padding:32px 0 24px">
-          <h1 style="font-size:20px;font-weight:700;margin:0">${data.schoolName}</h1>
+          <h1 style="font-size:20px;font-weight:700;margin:0">${esc(data.schoolName)}</h1>
         </div>
         <div style="background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:32px">
           <h2 style="font-size:18px;font-weight:600;margin:0 0 16px">ご予約ありがとうございます</h2>
           <p style="font-size:14px;line-height:1.6;color:#555;margin:0 0 20px">
-            ${data.customerName}様、以下の内容でご予約を承りました。
+            ${esc(data.customerName)}様、以下の内容でご予約を承りました。
           </p>
           <div style="background:#faf8f5;border-radius:8px;padding:20px;margin:0 0 20px">
             <table style="width:100%;font-size:14px;border-collapse:collapse">
-              <tr><td style="padding:6px 0;color:#888;width:100px">レッスン</td><td style="padding:6px 0;font-weight:600">${data.lessonTitle}</td></tr>
-              <tr><td style="padding:6px 0;color:#888">日時</td><td style="padding:6px 0">${data.date} ${data.time}</td></tr>
+              <tr><td style="padding:6px 0;color:#888;width:100px">レッスン</td><td style="padding:6px 0;font-weight:600">${esc(data.lessonTitle)}</td></tr>
+              <tr><td style="padding:6px 0;color:#888">日時</td><td style="padding:6px 0">${esc(data.date)} ${esc(data.time)}</td></tr>
               <tr><td style="padding:6px 0;color:#888">参加人数</td><td style="padding:6px 0">${data.participants}名</td></tr>
               <tr><td style="padding:6px 0;color:#888">合計金額</td><td style="padding:6px 0;font-weight:600">&yen;${data.amount.toLocaleString()}</td></tr>
               <tr><td style="padding:6px 0;color:#888">お支払い</td><td style="padding:6px 0">${paymentLabel}</td></tr>
@@ -154,10 +164,10 @@ export async function sendBookingNotificationToTeacher(
           <p style="font-size:14px;color:#555;margin:0 0 20px">新しい予約が入りました。</p>
           <div style="background:#faf8f5;border-radius:8px;padding:20px">
             <table style="width:100%;font-size:14px;border-collapse:collapse">
-              <tr><td style="padding:6px 0;color:#888;width:100px">生徒名</td><td style="padding:6px 0;font-weight:600">${data.customerName}</td></tr>
-              <tr><td style="padding:6px 0;color:#888">メール</td><td style="padding:6px 0">${data.customerEmail}</td></tr>
-              <tr><td style="padding:6px 0;color:#888">レッスン</td><td style="padding:6px 0">${data.lessonTitle}</td></tr>
-              <tr><td style="padding:6px 0;color:#888">日時</td><td style="padding:6px 0">${data.date} ${data.time}</td></tr>
+              <tr><td style="padding:6px 0;color:#888;width:100px">生徒名</td><td style="padding:6px 0;font-weight:600">${esc(data.customerName)}</td></tr>
+              <tr><td style="padding:6px 0;color:#888">メール</td><td style="padding:6px 0">${esc(data.customerEmail)}</td></tr>
+              <tr><td style="padding:6px 0;color:#888">レッスン</td><td style="padding:6px 0">${esc(data.lessonTitle)}</td></tr>
+              <tr><td style="padding:6px 0;color:#888">日時</td><td style="padding:6px 0">${esc(data.date)} ${esc(data.time)}</td></tr>
               <tr><td style="padding:6px 0;color:#888">参加人数</td><td style="padding:6px 0">${data.participants}名</td></tr>
               <tr><td style="padding:6px 0;color:#888">金額</td><td style="padding:6px 0;font-weight:600">&yen;${data.amount.toLocaleString()}</td></tr>
             </table>
@@ -186,17 +196,17 @@ export async function sendBookingCancellationEmail(
     html: `
       <div style="max-width:480px;margin:0 auto;font-family:'Helvetica Neue',Arial,sans-serif;color:#1a1a1a">
         <div style="text-align:center;padding:32px 0 24px">
-          <h1 style="font-size:20px;font-weight:700;margin:0">${data.schoolName}</h1>
+          <h1 style="font-size:20px;font-weight:700;margin:0">${esc(data.schoolName)}</h1>
         </div>
         <div style="background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:32px">
           <h2 style="font-size:18px;font-weight:600;margin:0 0 16px">予約キャンセルのお知らせ</h2>
           <p style="font-size:14px;line-height:1.6;color:#555;margin:0 0 20px">
-            ${data.customerName}様、以下の予約がキャンセルされました。
+            ${esc(data.customerName)}様、以下の予約がキャンセルされました。
           </p>
           <div style="background:#faf8f5;border-radius:8px;padding:20px;margin:0 0 20px">
             <table style="width:100%;font-size:14px;border-collapse:collapse">
-              <tr><td style="padding:6px 0;color:#888;width:100px">レッスン</td><td style="padding:6px 0">${data.lessonTitle}</td></tr>
-              <tr><td style="padding:6px 0;color:#888">日時</td><td style="padding:6px 0">${data.date} ${data.time}</td></tr>
+              <tr><td style="padding:6px 0;color:#888;width:100px">レッスン</td><td style="padding:6px 0">${esc(data.lessonTitle)}</td></tr>
+              <tr><td style="padding:6px 0;color:#888">日時</td><td style="padding:6px 0">${esc(data.date)} ${esc(data.time)}</td></tr>
             </table>
           </div>
           <p style="font-size:13px;color:#888;margin:0">またのご予約をお待ちしております。</p>
@@ -226,18 +236,18 @@ export async function sendBookingReminderEmail(
     html: `
       <div style="max-width:480px;margin:0 auto;font-family:'Helvetica Neue',Arial,sans-serif;color:#1a1a1a">
         <div style="text-align:center;padding:32px 0 24px">
-          <h1 style="font-size:20px;font-weight:700;margin:0">${data.schoolName}</h1>
+          <h1 style="font-size:20px;font-weight:700;margin:0">${esc(data.schoolName)}</h1>
         </div>
         <div style="background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:32px">
           <h2 style="font-size:18px;font-weight:600;margin:0 0 16px">明日のレッスンのお知らせ</h2>
           <p style="font-size:14px;line-height:1.6;color:#555;margin:0 0 20px">
-            ${data.customerName}様、明日のレッスンのリマインダーです。
+            ${esc(data.customerName)}様、明日のレッスンのリマインダーです。
           </p>
           <div style="background:#faf8f5;border-radius:8px;padding:20px;margin:0 0 20px">
             <table style="width:100%;font-size:14px;border-collapse:collapse">
-              <tr><td style="padding:6px 0;color:#888;width:100px">レッスン</td><td style="padding:6px 0;font-weight:600">${data.lessonTitle}</td></tr>
-              <tr><td style="padding:6px 0;color:#888">日時</td><td style="padding:6px 0">${data.date} ${data.time}</td></tr>
-              ${data.location ? `<tr><td style="padding:6px 0;color:#888">場所</td><td style="padding:6px 0">${data.location}</td></tr>` : ""}
+              <tr><td style="padding:6px 0;color:#888;width:100px">レッスン</td><td style="padding:6px 0;font-weight:600">${esc(data.lessonTitle)}</td></tr>
+              <tr><td style="padding:6px 0;color:#888">日時</td><td style="padding:6px 0">${esc(data.date)} ${esc(data.time)}</td></tr>
+              ${data.location ? `<tr><td style="padding:6px 0;color:#888">場所</td><td style="padding:6px 0">${esc(data.location)}</td></tr>` : ""}
             </table>
           </div>
           <p style="font-size:13px;color:#555;margin:0 0 16px">持ち物をお忘れなくお越しください。お会いできることを楽しみにしています！</p>
@@ -269,12 +279,12 @@ export async function sendReviewRequestEmail(
     html: `
       <div style="max-width:480px;margin:0 auto;font-family:'Helvetica Neue',Arial,sans-serif;color:#1a1a1a">
         <div style="text-align:center;padding:32px 0 24px">
-          <h1 style="font-size:20px;font-weight:700;margin:0">${data.schoolName}</h1>
+          <h1 style="font-size:20px;font-weight:700;margin:0">${esc(data.schoolName)}</h1>
         </div>
         <div style="background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:32px">
           <h2 style="font-size:18px;font-weight:600;margin:0 0 16px">レッスンはいかがでしたか？</h2>
           <p style="font-size:14px;line-height:1.6;color:#555;margin:0 0 20px">
-            ${data.customerName}様、「${data.lessonTitle}」にご参加いただきありがとうございました。<br>
+            ${esc(data.customerName)}様、「${esc(data.lessonTitle)}」にご参加いただきありがとうございました。<br>
             ぜひレビューをお寄せください。今後のレッスン改善に活かさせていただきます。
           </p>
           <div style="text-align:center;margin:0 0 16px">

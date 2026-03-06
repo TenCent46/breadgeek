@@ -6,28 +6,19 @@ import {
   sendBookingNotificationToTeacher,
 } from "@/lib/mail";
 import { updateCustomerTier } from "@/lib/customer-tier";
+import { bookingSchema } from "@/lib/validations";
 
 export const dynamic = "force-dynamic";
 
-interface BookingRequest {
-  serviceId: string;
-  scheduleId: string;
-  participants: number;
-  paymentType?: "on_site" | "stripe";
-  // Guest fields (optional if logged in)
-  guestName?: string;
-  guestEmail?: string;
-  guestPhone?: string;
-}
-
 export async function POST(request: NextRequest) {
-  const body = (await request.json()) as BookingRequest;
-  const { serviceId, scheduleId, participants, paymentType: reqPaymentType, guestName, guestEmail, guestPhone } = body;
-  const paymentType = reqPaymentType || "on_site";
+  const body = await request.json();
+  const parsed = bookingSchema.safeParse(body);
 
-  if (!serviceId || !scheduleId || !participants || participants < 1) {
+  if (!parsed.success) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
+
+  const { serviceId, scheduleId, participants, paymentType, guestName, guestEmail, guestPhone } = parsed.data;
 
   // Fetch service with schedule and school info
   const service = await prisma.service.findUnique({

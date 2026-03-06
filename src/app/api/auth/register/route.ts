@@ -3,31 +3,31 @@ import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { sendVerificationEmail } from "@/lib/mail";
+import { registerSchema } from "@/lib/validations";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  // Rate limit: 5 registrations per IP per minute
+  const ip = req.headers.get("x-forwarded-for") || "unknown";
+  const rl = rateLimit(`register:${ip}`, { limit: 5, windowMs: 60_000 });
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "リクエストが多すぎます。しばらくお待ちください。" },
+      { status: 429 }
+    );
+  }
+
   const body = await req.json();
-  const { email, password, name, role } = body as {
-    email: string;
-    password: string;
-    name: string;
-    role: "TEACHER" | "STUDENT";
-  };
+  const parsed = registerSchema.safeParse(body);
 
-  if (!email || !password || !name || !role) {
-    return NextResponse.json(
-      { error: "必須項目が入力されていません" },
-      { status: 400 }
-    );
+  if (!parsed.success) {
+    const firstError = parsed.error.issues[0]?.message || "入力内容を確認してください";
+    return NextResponse.json({ error: firstError }, { status: 400 });
   }
 
-  if (password.length < 8) {
-    return NextResponse.json(
-      { error: "パスワードは8文字以上で入力してください" },
-      { status: 400 }
-    );
-  }
+  const { email, password, name, role } = parsed.data;
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {

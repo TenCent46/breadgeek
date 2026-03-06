@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { reviewSchema } from "@/lib/validations";
 
 export const dynamic = "force-dynamic";
 
@@ -10,16 +11,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { serviceId, customerId, rating, comment } = (await request.json()) as {
-    serviceId: string;
-    customerId: string;
-    rating: number;
-    comment: string;
-  };
+  const body = await request.json();
+  const parsed = reviewSchema.safeParse(body);
 
-  if (!serviceId || !customerId || !rating || rating < 1 || rating > 5) {
+  if (!parsed.success) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
+
+  const { serviceId, customerId, rating, comment } = parsed.data;
 
   // Verify the customer belongs to this user
   const customer = await prisma.customer.findUnique({

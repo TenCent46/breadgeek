@@ -203,6 +203,8 @@ model Service {
   bookings     Booking[]
   reviews      Review[]
   sales        SaleRecord[]
+
+  @@index([schoolId, status])
 }
 
 model ServiceSchedule {
@@ -215,6 +217,8 @@ model ServiceSchedule {
   spotsTaken Int      @default(0)
 
   service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId, date])
 }
 
 // ─── Customer ───
@@ -264,6 +268,11 @@ model Booking {
 
   service  Service  @relation(fields: [serviceId], references: [id])
   customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([serviceId])
+  @@index([customerId])
+  @@index([date, status])
+  @@index([scheduleId])
 }
 
 // ─── Review ───
@@ -281,6 +290,9 @@ model Review {
 
   service  Service  @relation(fields: [serviceId], references: [id])
   customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([serviceId])
+  @@index([customerId])
 }
 
 // ─── Contact ───
@@ -315,6 +327,8 @@ model DistributionMessage {
   createdAt      DateTime      @default(now())
 
   school School @relation(fields: [schoolId], references: [id])
+
+  @@index([status, scheduledAt])
 }
 
 model MessageTemplate {
@@ -349,6 +363,9 @@ model SaleRecord {
 
   school  School   @relation(fields: [schoolId], references: [id])
   service Service? @relation(fields: [serviceId], references: [id])
+
+  @@index([schoolId, status])
+  @@index([schoolId, date])
 }
 
 // ─── Recipe ───
